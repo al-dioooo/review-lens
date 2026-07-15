@@ -1,0 +1,19 @@
+{
+  "reviews": [
+    {"reviewText": "pelayanan gk cepat antre lama", "stars": 2, "createdAt": "2026-01-01", "location": "contoh-cabang-a"},
+    {"reviewText": "antre lama pelayanan lambat", "stars": 1, "createdAt": "2026-01-02", "location": "contoh-cabang-a"},
+    {"reviewText": "petugas lambat membuat antre", "stars": 2, "createdAt": "2026-01-03", "location": "contoh-cabang-a"},
+    {"reviewText": "tidak cepat antre panjang", "stars": 2, "createdAt": "2026-01-04", "location": "contoh-cabang-a"},
+    {"reviewText": "pelayanan lama antre terus", "stars": 1, "createdAt": "2026-01-05", "location": "contoh-cabang-a"},
+    {"reviewText": "tempat bersih nyaman rapi", "stars": 5, "createdAt": "2026-01-06", "location": "contoh-cabang-b"},
+    {"reviewText": "ruangan bersih dan sangat nyaman", "stars": 5, "createdAt": "2026-01-07", "location": "contoh-cabang-b"},
+    {"reviewText": "lokasi rapi bersih nyaman", "stars": 4, "createdAt": "2026-01-08", "location": "contoh-cabang-b"},
+    {"reviewText": "fasilitas bersih membuat nyaman", "stars": 5, "createdAt": "2026-01-09", "location": "contoh-cabang-b"},
+    {"reviewText": "suasana nyaman tempat terawat", "stars": 4, "createdAt": "2026-01-10", "location": "contoh-cabang-b"},
+    {"reviewText": "harga tiket mahal sekali", "stars": 2, "createdAt": "2026-01-11", "location": "contoh-cabang-c"},
+    {"reviewText": "tiket mahal namun fasilitas bagus", "stars": 3, "createdAt": "2026-01-12", "location": "contoh-cabang-c"},
+    {"reviewText": "harga cukup terjangkau keluarga", "stars": 4, "createdAt": "2026-01-13", "location": "contoh-cabang-c"},
+    {"reviewText": "promo tiket membuat harga murah", "stars": 4, "createdAt": "2026-01-14", "location": "contoh-cabang-c"},
+    {"reviewText": "biaya makanan mahal", "stars": 2, "createdAt": "2026-01-15", "location": "contoh-cabang-c"}
+  ]
+}
