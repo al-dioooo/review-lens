@@ -86,3 +86,33 @@ def test_multiple_implicit_text_aliases_are_fatal(tmp_path: Path) -> None:
     path.write_text("text,content\na,b\n", encoding="utf-8")
     with pytest.raises(InputError, match="multiple aliases"):
         load_dataset(path, config=IngestionConfig())
+
+
+def test_same_source_cannot_be_text_and_rating(tmp_path: Path) -> None:
+    path = tmp_path / "reviews.csv"
+    path.write_text("body\n5\n", encoding="utf-8")
+    with pytest.raises(InputError, match="cannot be used for both"):
+        load_dataset(
+            path,
+            config=IngestionConfig(),
+            text_column="body",
+            rating_column="body",
+        )
+
+
+def test_explicit_text_cannot_duplicate_canonical_text(tmp_path: Path) -> None:
+    path = tmp_path / "reviews.csv"
+    path.write_text("review_text,body\ncanonical,explicit\n", encoding="utf-8")
+    with pytest.raises(InputError, match="would both produce 'review_text'"):
+        load_dataset(path, config=IngestionConfig(), text_column="body")
+
+
+def test_explicit_optional_alias_used_as_text_is_not_overwritten(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "reviews.csv"
+    path.write_text("date\nUse this text\n", encoding="utf-8")
+    loaded = load_dataset(path, config=IngestionConfig(), text_column="date")
+    assert "review_text" in loaded.frame.columns
+    assert loaded.frame.loc[0, "review_text"] == "Use this text"
+    assert pd.isna(loaded.frame.loc[0, "timestamp"])
