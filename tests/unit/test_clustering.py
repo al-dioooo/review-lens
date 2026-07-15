@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
 from scipy.sparse import csr_matrix  # type: ignore[import-untyped]
 from sklearn.cluster import KMeans  # type: ignore[import-untyped]
 from sklearn.exceptions import ConvergenceWarning  # type: ignore[import-untyped]
@@ -174,32 +173,38 @@ def test_invalid_manual_candidate_raises_analysis_error() -> None:
             )
 
 
-def test_auto_reuses_winning_model_without_refit(
+def test_auto_fits_each_candidate_once_and_reuses_winner(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_fit_predict = KMeans.fit_predict
-    fitted_models: list[KMeans] = []
+    original_fit = KMeans.fit
+    fit_calls: dict[int, int] = {}
+    fitted_models: dict[int, KMeans] = {}
 
-    def track_fit_predict(
+    def track_fit(
         model: KMeans,
         matrix: csr_matrix,
         *args: object,
         **kwargs: object,
-    ) -> NDArray[np.int_]:
-        fitted_models.append(model)
-        return np.asarray(
-            original_fit_predict(model, matrix, *args, **kwargs),
-            dtype=np.int_,
-        )
+    ) -> KMeans:
+        identity = id(model)
+        fit_calls[identity] = fit_calls.get(identity, 0) + 1
+        fitted_models[identity] = model
+        original_fit(model, matrix, *args, **kwargs)
+        return model
 
-    monkeypatch.setattr(KMeans, "fit_predict", track_fit_predict)
+    monkeypatch.setattr(KMeans, "fit", track_fit)
     result = cluster_features(_separated_matrix(), ClusteringConfig())
-    assert [int(model.n_clusters) for model in fitted_models] == [2, 3, 4, 5]
+    candidate_models = list(fitted_models.values())
+    assert [int(model.n_clusters) for model in candidate_models] == [2, 3, 4, 5]
+    assert all(fit_calls[id(model)] == 1 for model in candidate_models)
     winning_models = [
-        model for model in fitted_models if int(model.n_clusters) == result.selected_k
+        model
+        for model in candidate_models
+        if int(model.n_clusters) == result.selected_k
     ]
     assert len(winning_models) == 1
     assert result.model is winning_models[0]
+    assert fit_calls[id(result.model)] == 1
 
 
 def test_manual_evaluation_uses_bounded_candidate_range() -> None:
