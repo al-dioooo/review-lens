@@ -109,14 +109,17 @@ The selected key must exist and contain a list of objects.
 Before aliases are resolved, ReviewLens:
 
 1. inserts underscores at lower/digit-to-uppercase case transitions;
-2. replaces each run of punctuation or whitespace with one underscore;
+2. replaces each run of characters outside ASCII `[A-Za-z0-9]` with one
+   underscore;
 3. strips leading/trailing underscores; and
 4. lowercases the result.
 
-For example, `reviewText` becomes `review_text`, `createdAt` becomes
-`created_at`, and `Customer Segment` becomes `customer_segment`. An empty
-normalized name or a collision such as `reviewText` plus `review_text` is a
-fatal `InputError`; neither source column is silently discarded.
+Punctuation, whitespace, and non-ASCII letters are separators. For example,
+`reviewText` becomes `review_text`, `createdAt` becomes `created_at`, `Customer
+Segment` becomes `customer_segment`, and `Téks Ulasan` becomes
+`t_ks_ulasan`. An empty normalized name or a collision such as `reviewText`
+plus `review_text` is a fatal `InputError`; neither source column is silently
+discarded.
 
 ## Canonical fields and aliases
 

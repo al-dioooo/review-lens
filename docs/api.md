@@ -211,16 +211,21 @@ ReviewLensError
 
 - Catch `InputError` for missing/unsupported files, unreadable encoding,
   malformed JSON, schema ambiguity/collisions, or no usable rows.
-- Catch `ConfigurationError` for an unsupported language or invalid vectorizer
-  configuration.
-- Catch `AnalysisError` for empty/distinguishability-limited features or an
-  impossible clustering result.
+- Catch `ConfigurationError` for the explicitly validated subset: an
+  unsupported language, an n-gram lower bound below one, reversed n-gram bounds,
+  non-positive `max_features`, or a manual cluster count outside its valid
+  range.
+- Catch `AnalysisError` for downstream vectorization failures,
+  empty/distinguishability-limited features, or an impossible clustering
+  result. Settings rejected by scikit-learn, such as incompatible `min_df` or
+  `max_df`, surface as `AnalysisError` rather than `ConfigurationError`.
 - Catch `ExportError` for non-`.xlsx` destinations, protected existing targets,
   staging/validation failures, or unsuccessful installation/rollback.
 
 Catch `ReviewLensError` when an application wants one boundary for all expected
 user-facing failures. Unexpected programming or dependency errors are not
-wrapped universally.
+wrapped universally. `ConfigurationError` is not a blanket classification for
+every invalid field in `VectorizerConfig`.
 
 ## Excel export
 
