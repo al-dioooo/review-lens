@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pandas as pd
 from openpyxl import load_workbook
 
 from reviewlens import analyze_reviews
@@ -17,17 +18,35 @@ def test_seeded_example_is_reproducible(example_csv: Path) -> None:
     )
 
 
-def test_csv_and_json_have_same_manual_analysis(
+def test_committed_csv_and_json_examples_are_equivalent(
     example_csv: Path,
     example_json: Path,
 ) -> None:
+    csv_reviews = pd.read_csv(example_csv)
+    payload = json.loads(example_json.read_text(encoding="utf-8"))
+    json_reviews = payload["reviews"]
+    fields = ["reviewText", "stars", "createdAt", "location"]
+
+    assert csv_reviews.columns.tolist() == fields
+    assert len(csv_reviews) == len(json_reviews) == 15
+    assert pd.api.types.is_numeric_dtype(csv_reviews["stars"])
+    assert all(
+        isinstance(review["stars"], (int, float))
+        and not isinstance(review["stars"], bool)
+        for review in json_reviews
+    )
+    for field in fields:
+        assert [review[field] for review in json_reviews] == (
+            csv_reviews[field].tolist()
+        )
+
     csv_result = analyze_reviews(example_csv, clusters=3)
     json_result = analyze_reviews(example_json, clusters=3)
     assert csv_result.reviews["review_text"].tolist() == (
         json_result.reviews["review_text"].tolist()
     )
-    assert csv_result.clusters["review_count"].tolist() == (
-        json_result.clusters["review_count"].tolist()
+    assert csv_result.reviews["cluster_id"].tolist() == (
+        json_result.reviews["cluster_id"].tolist()
     )
 
 
