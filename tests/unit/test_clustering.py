@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 from scipy.sparse import csr_matrix  # type: ignore[import-untyped]
+from sklearn.cluster import KMeans  # type: ignore[import-untyped]
+from sklearn.exceptions import ConvergenceWarning  # type: ignore[import-untyped]
 
 from reviewlens.analysis.clustering import cluster_features
+from reviewlens.analysis.evaluation import fit_candidate
 from reviewlens.config import ClusteringConfig
 from reviewlens.exceptions import AnalysisError, ConfigurationError
 
@@ -22,6 +26,10 @@ def _separated_matrix() -> csr_matrix:
             ]
         )
     )
+
+
+def _collapsed_matrix() -> csr_matrix:
+    return csr_matrix(np.ones((3, 2)))
 
 
 def test_auto_k_returns_valid_evaluation_and_seeded_labels() -> None:
@@ -69,3 +77,135 @@ def test_equal_silhouette_scores_choose_smaller_k(
     )
     result = cluster_features(_separated_matrix(), ClusteringConfig())
     assert result.selected_k == 2
+
+
+@pytest.mark.parametrize("row_count", [6, 12])
+def test_auto_evaluation_covers_exact_bounded_candidate_range(
+    row_count: int,
+) -> None:
+    result = cluster_features(csr_matrix(np.eye(row_count)), ClusteringConfig())
+    assert result.evaluation["k"].tolist() == list(range(2, min(10, row_count - 1) + 1))
+
+
+def test_auto_selects_the_greatest_silhouette(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scores = {2: 0.2, 3: 0.9, 4: 0.4, 5: 0.1}
+
+    def score_by_cluster_count(*args: object, **_kwargs: object) -> float:
+        labels = np.asarray(args[1])
+        return scores[len(np.unique(labels))]
+
+    monkeypatch.setattr(
+        "reviewlens.analysis.evaluation.silhouette_score",
+        score_by_cluster_count,
+    )
+    result = cluster_features(_separated_matrix(), ClusteringConfig())
+    assert result.selected_k == 3
+    assert result.evaluation.set_index("k").loc[3, "silhouette"] == 0.9
+
+
+def test_fewer_unique_labels_invalidates_candidate() -> None:
+    with pytest.warns(ConvergenceWarning):
+        candidate = fit_candidate(_collapsed_matrix(), 2, ClusteringConfig())
+    assert not candidate.valid
+    assert candidate.reason == "fewer_labels_than_requested"
+    assert candidate.model is None
+
+
+def test_silhouette_value_error_invalidates_candidate_with_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_silhouette(*_args: object, **_kwargs: object) -> float:
+        raise ValueError("cosine scoring failed")
+
+    monkeypatch.setattr(
+        "reviewlens.analysis.evaluation.silhouette_score",
+        fail_silhouette,
+    )
+    candidate = fit_candidate(_separated_matrix(), 3, ClusteringConfig())
+    assert not candidate.valid
+    assert candidate.reason == "cosine scoring failed"
+    assert candidate.model is None
+
+
+def test_cosine_silhouette_sampling_is_seeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    matrix = _separated_matrix()
+    received_matrix: list[object] = []
+    received_options: dict[str, object] = {}
+
+    def record_silhouette(*args: object, **kwargs: object) -> float:
+        received_matrix.append(args[0])
+        received_options.update(kwargs)
+        return 0.5
+
+    monkeypatch.setattr(
+        "reviewlens.analysis.evaluation.silhouette_score",
+        record_silhouette,
+    )
+    candidate = fit_candidate(
+        matrix,
+        3,
+        ClusteringConfig(random_state=17, silhouette_sample_size=3),
+    )
+    assert candidate.valid
+    assert received_matrix[0] is matrix
+    assert received_options == {
+        "metric": "cosine",
+        "sample_size": 3,
+        "random_state": 17,
+    }
+
+
+def test_all_invalid_auto_candidates_raise_analysis_error() -> None:
+    with pytest.warns(ConvergenceWarning):
+        with pytest.raises(AnalysisError, match="No candidate cluster count"):
+            cluster_features(_collapsed_matrix(), ClusteringConfig())
+
+
+def test_invalid_manual_candidate_raises_analysis_error() -> None:
+    with pytest.warns(ConvergenceWarning):
+        with pytest.raises(AnalysisError, match="Manual cluster count 2 is invalid"):
+            cluster_features(
+                _collapsed_matrix(),
+                ClusteringConfig(clusters=2),
+            )
+
+
+def test_auto_reuses_winning_model_without_refit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_fit_predict = KMeans.fit_predict
+    fitted_models: list[KMeans] = []
+
+    def track_fit_predict(
+        model: KMeans,
+        matrix: csr_matrix,
+        *args: object,
+        **kwargs: object,
+    ) -> NDArray[np.int_]:
+        fitted_models.append(model)
+        return np.asarray(
+            original_fit_predict(model, matrix, *args, **kwargs),
+            dtype=np.int_,
+        )
+
+    monkeypatch.setattr(KMeans, "fit_predict", track_fit_predict)
+    result = cluster_features(_separated_matrix(), ClusteringConfig())
+    assert [int(model.n_clusters) for model in fitted_models] == [2, 3, 4, 5]
+    winning_models = [
+        model for model in fitted_models if int(model.n_clusters) == result.selected_k
+    ]
+    assert len(winning_models) == 1
+    assert result.model is winning_models[0]
+
+
+def test_manual_evaluation_uses_bounded_candidate_range() -> None:
+    result = cluster_features(
+        _separated_matrix(),
+        ClusteringConfig(clusters=3, evaluate_manual=True, k_max=4),
+    )
+    assert result.selected_k == 3
+    assert result.evaluation["k"].tolist() == [2, 3, 4]
