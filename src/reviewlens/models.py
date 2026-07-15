@@ -32,3 +32,14 @@ class AnalysisResult:
     metadata: dict[str, object]
     diagnostics: tuple[Diagnostic, ...]
     source_stem: str
+
+    def export_excel(
+        self,
+        path: str | Path | None = None,
+        *,
+        force: bool = False,
+    ) -> ExportManifest:
+        """Export this analysis and return the completed artifact paths."""
+        from reviewlens.export.excel import export_analysis
+
+        return export_analysis(self, path, force=force)
