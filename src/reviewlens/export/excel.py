@@ -36,6 +36,7 @@ _HEADER_ALIGNMENT = Alignment(vertical="top", wrap_text=True)
 _MAX_COLUMN_WIDTH = 50
 _IMAGE_WIDTH = 720
 _APPROXIMATE_ROW_PIXELS = 20
+_CLEANUP_ATTEMPTS = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +45,25 @@ class _VisualSection:
     header_row: int
     data_end_row: int
     max_column: int
+
+
+@dataclass(frozen=True, slots=True)
+class _TargetState:
+    label: str
+    final: Path
+    backup: Path
+    had_original: bool
+
+
+class _TransactionFailure(Exception):
+    def __init__(
+        self,
+        trigger: Exception,
+        rollback_failures: tuple[str, ...],
+    ) -> None:
+        super().__init__(str(trigger))
+        self.trigger = trigger
+        self.rollback_failures = rollback_failures
 
 
 def _metadata_frame(result: AnalysisResult) -> pd.DataFrame:
@@ -288,6 +308,69 @@ def _backup_path(target: Path, token: str) -> Path:
     return target.with_name(f".{target.name}.{token}.reviewlens-backup")
 
 
+def _best_effort_cleanup(
+    targets: tuple[tuple[str, Path], ...],
+    *,
+    attempts: int = _CLEANUP_ATTEMPTS,
+) -> tuple[str, ...]:
+    pending = list(targets)
+    failures: dict[str, str] = {}
+    for _ in range(attempts):
+        if not pending:
+            break
+        retry: list[tuple[str, Path]] = []
+        for label, target in pending:
+            try:
+                if not _path_exists(target):
+                    failures.pop(label, None)
+                    continue
+                _remove_path(target)
+                if _path_exists(target):
+                    raise OSError("path remains after cleanup")
+            except Exception as error:
+                failures[label] = f"{label} cleanup: {error}"
+                retry.append((label, target))
+            else:
+                failures.pop(label, None)
+        pending = retry
+    return tuple(failures[label] for label, _ in pending)
+
+
+def _rollback_target(state: _TargetState) -> list[str]:
+    failures: list[str] = []
+    if state.had_original:
+        if _path_exists(state.backup):
+            if _path_exists(state.final):
+                try:
+                    _remove_path(state.final)
+                except Exception as error:
+                    failures.append(f"{state.label} remove: {error}")
+            try:
+                _replace_path(state.backup, state.final)
+            except Exception as error:
+                failures.append(f"{state.label} restore: {error}")
+        elif not _path_exists(state.final):
+            failures.append(
+                f"{state.label} restore: original target and backup are missing"
+            )
+    elif _path_exists(state.final):
+        try:
+            _remove_path(state.final)
+        except Exception as error:
+            failures.append(f"{state.label} remove: {error}")
+    return failures
+
+
+def _rollback_targets(states: tuple[_TargetState, ...]) -> tuple[str, ...]:
+    failures: list[str] = []
+    for state in states:
+        try:
+            failures.extend(_rollback_target(state))
+        except Exception as error:
+            failures.append(f"{state.label} rollback: {error}")
+    return tuple(failures)
+
+
 def _install_staged_targets(
     staged_workbook: Path,
     staged_chart_dir: Path,
@@ -297,45 +380,43 @@ def _install_staged_targets(
     force: bool,
 ) -> None:
     token = uuid4().hex
-    workbook_backup = _backup_path(output, token)
-    chart_backup = _backup_path(final_chart_dir, token)
-    backed_up_workbook = False
-    backed_up_charts = False
-    installed_workbook = False
-    installed_charts = False
+    states = (
+        _TargetState(
+            label="workbook",
+            final=output,
+            backup=_backup_path(output, token),
+            had_original=_path_exists(output),
+        ),
+        _TargetState(
+            label="charts",
+            final=final_chart_dir,
+            backup=_backup_path(final_chart_dir, token),
+            had_original=_path_exists(final_chart_dir),
+        ),
+    )
+    workbook, charts = states
     try:
-        if not force and (_path_exists(output) or _path_exists(final_chart_dir)):
+        if not force and any(state.had_original for state in states):
             raise FileExistsError("an export target already exists")
-        if force and _path_exists(output):
-            _replace_path(output, workbook_backup)
-            backed_up_workbook = True
-        if force and _path_exists(final_chart_dir):
-            _replace_path(final_chart_dir, chart_backup)
-            backed_up_charts = True
+        if force:
+            for state in states:
+                if state.had_original:
+                    _replace_path(state.final, state.backup)
 
         if _path_exists(output) or _path_exists(final_chart_dir):
             raise FileExistsError("an export target already exists")
         os.replace(staged_workbook, output)
-        installed_workbook = True
         staged_chart_dir.replace(final_chart_dir)
-        installed_charts = True
-    except Exception:
-        backed_up_workbook = backed_up_workbook or _path_exists(workbook_backup)
-        backed_up_charts = backed_up_charts or _path_exists(chart_backup)
-        if backed_up_workbook:
-            _remove_path(output)
-            _replace_path(workbook_backup, output)
-        elif installed_workbook:
-            _remove_path(output)
-        if backed_up_charts:
-            _remove_path(final_chart_dir)
-            _replace_path(chart_backup, final_chart_dir)
-        elif installed_charts:
-            _remove_path(final_chart_dir)
-        raise
+    except Exception as trigger:
+        rollback_failures = _rollback_targets(states)
+        raise _TransactionFailure(trigger, rollback_failures) from trigger
     else:
-        _remove_path(workbook_backup)
-        _remove_path(chart_backup)
+        _best_effort_cleanup(
+            (
+                ("workbook backup", workbook.backup),
+                ("chart backup", charts.backup),
+            )
+        )
 
 
 def export_analysis(
@@ -386,13 +467,19 @@ def export_analysis(
             final_chart_dir,
             force=force,
         )
-    except ExportError:
-        raise
     except Exception as error:
-        raise ExportError(f"Failed to export {output.name}: {error}") from error
+        cause = error
+        rollback_failures: tuple[str, ...] = ()
+        if isinstance(error, _TransactionFailure):
+            cause = error.trigger
+            rollback_failures = error.rollback_failures
+        message = f"Failed to export {output.name}: {cause}"
+        if rollback_failures:
+            message += "; rollback failures: " + "; ".join(rollback_failures)
+        raise ExportError(message) from cause
     finally:
         if staging is not None:
-            shutil.rmtree(staging, ignore_errors=True)
+            _best_effort_cleanup((("staging", staging),))
 
     chart_paths = tuple(final_chart_dir / artifact.path.name for artifact in artifacts)
     return ExportManifest(workbook_path=output, chart_paths=chart_paths)
