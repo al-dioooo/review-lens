@@ -1,0 +1,94 @@
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "reviewlens"
+version = "0.1.0"
+description = "Deterministic Indonesian-first review clustering and reporting toolkit"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+  { name = "Aldio Lisafron", email = "lisafronaldio123@gmail.com" },
+]
+maintainers = [
+  { name = "Aldio Lisafron", email = "lisafronaldio123@gmail.com" },
+]
+keywords = ["reviews", "nlp", "clustering", "indonesian", "k-means"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
+dependencies = [
+  "matplotlib>=3.9.2",
+  "numpy>=1.26.4",
+  "openpyxl>=3.1.5",
+  "pandas>=2.2.3",
+  "pillow>=10.4.0",
+  "Sastrawi>=1.0.1",
+  "scikit-learn>=1.5.2",
+  "scipy>=1.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/al-dioooo/review-lens"
+Repository = "https://github.com/al-dioooo/review-lens"
+Issues = "https://github.com/al-dioooo/review-lens/issues"
+Changelog = "https://github.com/al-dioooo/review-lens/blob/production/CHANGELOG.md"
+
+[project.scripts]
+reviewlens = "reviewlens.cli:main"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.15.0",
+  "pandas-stubs>=2.2.3",
+  "pytest>=8.3.5",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.11.0",
+]
+
+[tool.uv]
+required-version = ">=0.11.8,<0.12"
+default-groups = ["dev"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["Sastrawi.*", "matplotlib.*", "openpyxl.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-config", "--strict-markers"]
+
+[tool.coverage.run]
+branch = true
+source = ["reviewlens"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
