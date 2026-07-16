@@ -156,7 +156,7 @@ def analyze_reviews(
         )
 
     metadata: dict[str, object] = {
-        "reviewlens_version": distribution_version("reviewlens"),
+        "reviewlens_version": distribution_version("review-lens"),
         "dependency_versions": _dependency_versions(),
         "config": asdict(effective),
         "source_name": loaded.source_path.name,
