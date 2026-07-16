@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
 from scipy.sparse import csr_matrix  # type: ignore[import-untyped]
 from sklearn.cluster import KMeans  # type: ignore[import-untyped]
+from sklearn.exceptions import ConvergenceWarning  # type: ignore[import-untyped]
 from sklearn.metrics import silhouette_score  # type: ignore[import-untyped]
 
 from reviewlens.config import ClusteringConfig
@@ -32,7 +34,9 @@ def fit_candidate(
         max_iter=config.max_iter,
     )
     try:
-        labels = model.fit_predict(matrix)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
+            labels = model.fit_predict(matrix)
         if len(np.unique(labels)) != k:
             return EvaluationCandidate(
                 k,

@@ -11,6 +11,16 @@ detection considers comma, semicolon, tab, and pipe delimiters; when detection
 is inconclusive, ReviewLens uses comma. Set
 `AnalysisConfig.ingestion.csv_delimiter` to bypass detection.
 
+CSV fields are ingested losslessly as strings before schema conversion. Literal
+values such as `NA`, `N/A`, and `null` remain text, and numeric-looking values
+such as `001` retain their leading zeros. A genuinely empty cell becomes a
+missing value. Blank physical records are retained in source order as records
+whose cells are missing; they are not silently skipped. The raw header is
+validated before pandas can rename duplicate columns, so duplicate, empty, or
+normalization-colliding names are fatal input errors. Empty and zero-byte files
+also raise `InputError`. A record with more fields than the raw header has
+columns is rejected rather than allowing a parser to shift or discard values.
+
 A complete synthetic CSV with aliases, all optional fields, and an additional
 preserved column looks like this:
 
@@ -108,18 +118,20 @@ The selected key must exist and contain a list of objects.
 
 Before aliases are resolved, ReviewLens:
 
-1. inserts underscores at lower/digit-to-uppercase case transitions;
-2. replaces each run of characters outside ASCII `[A-Za-z0-9]` with one
-   underscore;
-3. strips leading/trailing underscores; and
-4. lowercases the result.
+1. applies Unicode NFKC normalization;
+2. inserts underscores at lower/digit-to-uppercase case transitions;
+3. replaces each run of characters that is not a Unicode letter or digit with
+   one underscore;
+4. strips leading/trailing underscores; and
+5. lowercases the result.
 
-Punctuation, whitespace, and non-ASCII letters are separators. For example,
-`reviewText` becomes `review_text`, `createdAt` becomes `created_at`, `Customer
-Segment` becomes `customer_segment`, and `Téks Ulasan` becomes
-`t_ks_ulasan`. An empty normalized name or a collision such as `reviewText`
-plus `review_text` is a fatal `InputError`; neither source column is silently
-discarded.
+Unicode letters and digits are retained, while punctuation and whitespace are
+separators. For example, `reviewText` becomes `review_text`, `createdAt`
+becomes `created_at`, `Customer Segment` becomes `customer_segment`, and `Téks
+Ulasan` becomes `téks_ulasan`. Compatibility forms are folded first, so
+`Ｔｅｘｔ` becomes `text`. An empty normalized name or a collision such as
+`reviewText` plus `review_text` is a fatal `InputError`; neither source column
+is silently discarded.
 
 ## Canonical fields and aliases
 
@@ -178,6 +190,10 @@ in the public `reviews` frame, but null, blank, or preprocessing-empty text is
 marked `included=False`, receives `drop_reason="blank_review"`, and has no
 cluster ID. ReviewLens emits a counted `blank_review_excluded` warning.
 
+Each review-text value must be scalar. Structured JSON values such as arrays or
+objects in the review-text field raise `InputError`; they are never stringified
+into review content.
+
 Text may become empty after URL/emoji/punctuation cleaning, slang handling,
 stopword removal, or optional stemming. If no usable review remains, analysis
 raises `InputError` rather than producing an empty report.
@@ -185,13 +201,15 @@ raises `InputError` rather than producing an empty report.
 ## Rating behavior
 
 Ratings are optional. If no rating field exists, ReviewLens adds a nullable
-`rating` column and analysis continues. Missing/null values and empty CSV cells
-remain missing. A supplied non-numeric value or number outside the inclusive
-range 1–5 becomes missing and contributes to an `invalid_rating` warning count.
+`rating` column and analysis continues. Missing JSON values, JSON `null`, and
+empty CSV cells remain missing. A supplied non-numeric value or number outside
+the inclusive range 1–5 becomes missing and contributes to an `invalid_rating`
+warning count. Boolean and structured rating values are also invalid rather
+than being coerced to numbers or strings.
 
 An invalid rating never excludes otherwise usable review text. Average ratings,
 rating signals, summaries, and rating charts ignore missing values. When the
-entire dataset has no valid rating, ReviewLens records an informational
+entire dataset has no valid rating, ReviewLens records a warning
 `rating_unavailable` diagnostic and omits rating-dependent chart output.
 
 ## Metadata and additional columns

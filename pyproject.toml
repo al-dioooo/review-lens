@@ -9,6 +9,7 @@ description = "Deterministic Indonesian-first review clustering and reporting to
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [
   { name = "Aldio Lisafron", email = "lisafronaldio123@gmail.com" },
 ]

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import warnings
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, cast
 
+import numpy as np
 import pandas as pd
 import pytest
+from sklearn.exceptions import ConvergenceWarning  # type: ignore[import-untyped]
 
 from reviewlens import (
     AnalysisConfig,
@@ -16,10 +21,13 @@ from reviewlens import (
 )
 from reviewlens.config import (
     ClusteringConfig,
+    IngestionConfig,
+    InterpretationConfig,
+    PreprocessingConfig,
     ProjectionConfig,
     VectorizerConfig,
 )
-from reviewlens.exceptions import ConfigurationError
+from reviewlens.exceptions import ConfigurationError, InputError
 
 
 def _write_reviews(path: Path) -> None:
@@ -67,6 +75,29 @@ def test_convenience_arguments_override_config(tmp_path: Path) -> None:
     assert supplied.clustering.clusters == 3
 
 
+def test_convenience_arguments_can_repair_overridden_config_fields(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "reviews.csv"
+    _write_reviews(source)
+    supplied = AnalysisConfig(
+        language=cast(Any, "en"),
+        clustering=ClusteringConfig(clusters=1),
+    )
+
+    result = analyze_reviews(
+        source,
+        language="id",
+        clusters=2,
+        config=supplied,
+    )
+
+    effective = result.metadata["config"]
+    assert isinstance(effective, dict)
+    assert effective["language"] == "id"
+    assert effective["clustering"]["clusters"] == 2
+
+
 def test_config_is_used_when_convenience_argument_is_absent(tmp_path: Path) -> None:
     source = tmp_path / "reviews.csv"
     _write_reviews(source)
@@ -104,6 +135,321 @@ def test_invalid_vectorizer_configuration_is_rejected_before_loading(
     config = AnalysisConfig(vectorizer=vectorizer)
     with pytest.raises(ConfigurationError, match=message):
         analyze_reviews(tmp_path / "missing.csv", config=config)
+
+
+@pytest.mark.parametrize(
+    ("config", "message"),
+    [
+        (AnalysisConfig(language=cast(Any, 1)), "language"),
+        (
+            AnalysisConfig(ingestion=IngestionConfig(records_key="")),
+            "records_key",
+        ),
+        (
+            AnalysisConfig(ingestion=IngestionConfig(records_key=cast(Any, 1))),
+            "records_key",
+        ),
+        (
+            AnalysisConfig(ingestion=IngestionConfig(csv_delimiter="")),
+            "csv_delimiter",
+        ),
+        (
+            AnalysisConfig(ingestion=IngestionConfig(csv_delimiter="::")),
+            "csv_delimiter",
+        ),
+        (
+            AnalysisConfig(ingestion=IngestionConfig(csv_delimiter=cast(Any, 1))),
+            "csv_delimiter",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(normalize_slang=cast(Any, 1))
+            ),
+            "normalize_slang",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(remove_stopwords=cast(Any, 1))
+            ),
+            "remove_stopwords",
+        ),
+        (
+            AnalysisConfig(preprocessing=PreprocessingConfig(stem=cast(Any, 1))),
+            "stem",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(
+                    protected_negations=cast(Any, ["tidak"])
+                )
+            ),
+            "protected_negations",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(protected_negations=("",))
+            ),
+            "protected_negations",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(protected_negations=("dua kata",))
+            ),
+            "protected_negations",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(
+                    extra_slang=cast(Any, [("gk", "gak")])
+                )
+            ),
+            "extra_slang",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(extra_slang=cast(Any, (("gk",),)))
+            ),
+            "extra_slang",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(extra_slang=(("gk", ""),))
+            ),
+            "extra_slang",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(extra_stopwords=cast(Any, ["dan"]))
+            ),
+            "extra_stopwords",
+        ),
+        (
+            AnalysisConfig(
+                preprocessing=PreprocessingConfig(extra_stopwords=("dua kata",))
+            ),
+            "extra_stopwords",
+        ),
+        (
+            AnalysisConfig(vectorizer=VectorizerConfig(ngram_range=cast(Any, [1, 2]))),
+            "ngram_range",
+        ),
+        (
+            AnalysisConfig(vectorizer=VectorizerConfig(ngram_range=cast(Any, (1,)))),
+            "ngram_range",
+        ),
+        (
+            AnalysisConfig(
+                vectorizer=VectorizerConfig(ngram_range=(cast(Any, True), 2))
+            ),
+            "ngram_range",
+        ),
+        (
+            AnalysisConfig(vectorizer=VectorizerConfig(min_df=cast(Any, True))),
+            "min_df",
+        ),
+        (AnalysisConfig(vectorizer=VectorizerConfig(min_df=0)), "min_df"),
+        (
+            AnalysisConfig(vectorizer=VectorizerConfig(max_df=cast(Any, "1.0"))),
+            "max_df",
+        ),
+        (AnalysisConfig(vectorizer=VectorizerConfig(max_df=0.0)), "max_df"),
+        (AnalysisConfig(vectorizer=VectorizerConfig(max_df=1.1)), "max_df"),
+        (
+            AnalysisConfig(vectorizer=VectorizerConfig(max_features=cast(Any, True))),
+            "max_features",
+        ),
+        (
+            AnalysisConfig(vectorizer=VectorizerConfig(sublinear_tf=cast(Any, 1))),
+            "sublinear_tf",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(clusters=cast(Any, "manual"))),
+            "clusters",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(clusters=cast(Any, True))),
+            "clusters",
+        ),
+        (AnalysisConfig(clustering=ClusteringConfig(clusters=1)), "clusters"),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(random_state=cast(Any, True))),
+            "random_state",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(random_state=-1)),
+            "random_state",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(random_state=2**32)),
+            "random_state",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(n_init=cast(Any, True))),
+            "n_init",
+        ),
+        (AnalysisConfig(clustering=ClusteringConfig(n_init=0)), "n_init"),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(max_iter=cast(Any, True))),
+            "max_iter",
+        ),
+        (AnalysisConfig(clustering=ClusteringConfig(max_iter=0)), "max_iter"),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(k_max=cast(Any, True))),
+            "k_max",
+        ),
+        (AnalysisConfig(clustering=ClusteringConfig(k_max=1)), "k_max"),
+        (
+            AnalysisConfig(
+                clustering=ClusteringConfig(silhouette_sample_size=cast(Any, True))
+            ),
+            "silhouette_sample_size",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(silhouette_sample_size=1)),
+            "silhouette_sample_size",
+        ),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(evaluate_manual=cast(Any, 1))),
+            "evaluate_manual",
+        ),
+        (
+            AnalysisConfig(
+                interpretation=InterpretationConfig(keyword_count=cast(Any, True))
+            ),
+            "keyword_count",
+        ),
+        (
+            AnalysisConfig(interpretation=InterpretationConfig(keyword_count=0)),
+            "keyword_count",
+        ),
+        (
+            AnalysisConfig(
+                interpretation=InterpretationConfig(
+                    representative_count=cast(Any, True)
+                )
+            ),
+            "representative_count",
+        ),
+        (
+            AnalysisConfig(interpretation=InterpretationConfig(representative_count=0)),
+            "representative_count",
+        ),
+        (
+            AnalysisConfig(projection=ProjectionConfig(components=cast(Any, True))),
+            "components",
+        ),
+        (AnalysisConfig(projection=ProjectionConfig(components=0)), "components"),
+        (
+            AnalysisConfig(projection=ProjectionConfig(sample_size=cast(Any, True))),
+            "sample_size",
+        ),
+        (AnalysisConfig(projection=ProjectionConfig(sample_size=0)), "sample_size"),
+        (
+            AnalysisConfig(projection=ProjectionConfig(random_state=cast(Any, True))),
+            "random_state",
+        ),
+        (
+            AnalysisConfig(projection=ProjectionConfig(random_state=-1)),
+            "random_state",
+        ),
+        (
+            AnalysisConfig(projection=ProjectionConfig(random_state=2**32)),
+            "random_state",
+        ),
+    ],
+)
+def test_every_invalid_config_field_is_rejected_before_loading(
+    tmp_path: Path,
+    config: AnalysisConfig,
+    message: str,
+) -> None:
+    with pytest.raises(ConfigurationError, match=message):
+        analyze_reviews(tmp_path / "missing.csv", config=config)
+
+
+@pytest.mark.parametrize(
+    ("config", "section"),
+    [
+        (AnalysisConfig(ingestion=cast(Any, "invalid")), "ingestion"),
+        (AnalysisConfig(preprocessing=cast(Any, "invalid")), "preprocessing"),
+        (AnalysisConfig(vectorizer=cast(Any, "invalid")), "vectorizer"),
+        (AnalysisConfig(clustering=cast(Any, "invalid")), "clustering"),
+        (AnalysisConfig(interpretation=cast(Any, "invalid")), "interpretation"),
+        (AnalysisConfig(projection=cast(Any, "invalid")), "projection"),
+    ],
+)
+def test_invalid_config_section_type_is_a_configuration_error(
+    tmp_path: Path,
+    config: AnalysisConfig,
+    section: str,
+) -> None:
+    with pytest.raises(ConfigurationError, match=section):
+        analyze_reviews(tmp_path / "missing.csv", config=config)
+
+
+def test_invalid_root_config_type_is_a_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="AnalysisConfig"):
+        analyze_reviews(tmp_path / "missing.csv", config=cast(Any, "invalid"))
+
+
+@pytest.mark.parametrize(
+    ("config", "message"),
+    [
+        (AnalysisConfig(language=cast(Any, np.array(["id", "en"]))), "language"),
+        (
+            AnalysisConfig(clustering=ClusteringConfig(clusters=cast(Any, pd.NA))),
+            "clusters",
+        ),
+    ],
+)
+def test_array_like_config_values_are_configuration_errors_before_loading(
+    tmp_path: Path,
+    config: AnalysisConfig,
+    message: str,
+) -> None:
+    with pytest.raises(ConfigurationError, match=message):
+        analyze_reviews(tmp_path / "missing.csv", config=config)
+
+
+def test_structured_review_text_is_an_api_input_error(tmp_path: Path) -> None:
+    source = tmp_path / "structured.json"
+    source.write_text(
+        json.dumps(
+            [
+                {"text": ["nested", "review"], "rating": 5},
+                {"text": "pelayanan cepat", "rating": 5},
+                {"text": "pelayanan lambat", "rating": 1},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(InputError, match=r"(?i)review text.*scalar"):
+        analyze_reviews(source, clusters=2)
+
+
+def test_duplicate_heavy_api_analysis_emits_no_convergence_warning(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "duplicates.csv"
+    source.write_text(
+        "text,rating\n"
+        "pelayanan lambat,1\n"
+        "pelayanan lambat,1\n"
+        "tempat bersih,5\n"
+        "tempat bersih,5\n"
+        "lokasi nyaman,4\n"
+        "lokasi nyaman,4\n",
+        encoding="utf-8",
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = analyze_reviews(source)
+
+    selected_k = cast(int, result.metadata["selected_k"])
+    assert 2 <= selected_k <= 3
+    assert not any(item.category is ConvergenceWarning for item in caught)
 
 
 def test_result_and_manifest_are_immutable_at_the_top_level(tmp_path: Path) -> None:
@@ -213,13 +559,13 @@ def test_diagnostics_are_aggregated_in_stage_order(tmp_path: Path) -> None:
         "warning",
         "warning",
         "warning",
-        "info",
+        "warning",
     ]
     assert result.visual_data["rating_distribution"].empty
     assert result.metadata["diagnostic_counts"] == {
         "total": 4,
-        "info": 1,
-        "warning": 3,
+        "info": 0,
+        "warning": 4,
     }
 
 

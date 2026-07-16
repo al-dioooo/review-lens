@@ -115,11 +115,14 @@ Column names are normalized before schema resolution. Automatic aliases are:
 
 Use `--text-column` and `--rating-column`, or the matching Python arguments,
 when automatic aliases are ambiguous or your dataset uses different names.
-Ratings are optional. Numeric values from 1 through 5 are retained; blank,
-non-numeric, and out-of-range values become missing without excluding an
-otherwise usable review. Unrecognized columns and exact duplicate rows are
-preserved. The complete CSV/JSON rules and examples are in the
-[data-format guide](docs/data-format.md).
+CSV ingestion preserves literal text such as `NA`, `N/A`, and `null`, leading
+zeros, blank physical records, and source order; only genuinely empty cells are
+missing. Unicode column names are normalized with NFKC while retaining Unicode
+letters and digits. Review text must be scalar. Ratings are optional. Numeric
+values from 1 through 5 are retained; blank, boolean, structured, non-numeric,
+and out-of-range values become missing without excluding an otherwise usable
+review. Unrecognized columns and exact duplicate rows are preserved. The
+complete CSV/JSON rules and examples are in the [data-format guide](docs/data-format.md).
 
 ## Output
 

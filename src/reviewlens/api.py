@@ -13,7 +13,11 @@ from reviewlens.analysis.clustering import cluster_features
 from reviewlens.analysis.interpretation import interpret_clusters
 from reviewlens.analysis.projection import project_features
 from reviewlens.analysis.vectorizer import vectorize_reviews
-from reviewlens.config import AnalysisConfig
+from reviewlens.config import (
+    AnalysisConfig,
+    ClusteringConfig,
+    validate_analysis_config,
+)
 from reviewlens.exceptions import ConfigurationError
 from reviewlens.ingestion import load_dataset
 from reviewlens.models import AnalysisResult, Diagnostic
@@ -36,24 +40,19 @@ def _effective_config(
     language: Literal["id"] | None,
     clusters: int | Literal["auto"] | None,
 ) -> AnalysisConfig:
-    effective = config or AnalysisConfig()
+    effective = AnalysisConfig() if config is None else config
+    if not isinstance(effective, AnalysisConfig):
+        raise ConfigurationError("config must be an AnalysisConfig instance.")
     if language is not None:
-        if language != "id":
-            raise ConfigurationError("v0.1.0 supports language='id' only.")
         effective = replace(effective, language=language)
     if clusters is not None:
+        if not isinstance(effective.clustering, ClusteringConfig):
+            raise ConfigurationError("clustering must be a ClusteringConfig instance.")
         effective = replace(
             effective,
             clustering=replace(effective.clustering, clusters=clusters),
         )
-    if effective.language != "id":
-        raise ConfigurationError("v0.1.0 supports language='id' only.")
-    if effective.vectorizer.ngram_range[0] < 1:
-        raise ConfigurationError("ngram_range minimum must be at least 1.")
-    if effective.vectorizer.ngram_range[0] > effective.vectorizer.ngram_range[1]:
-        raise ConfigurationError("ngram_range minimum cannot exceed maximum.")
-    if effective.vectorizer.max_features < 1:
-        raise ConfigurationError("max_features must be positive.")
+    validate_analysis_config(effective)
     return effective
 
 
@@ -147,7 +146,7 @@ def analyze_reviews(
     if valid_ratings.empty:
         diagnostics += (
             Diagnostic(
-                severity="info",
+                severity="warning",
                 code="rating_unavailable",
                 message=(
                     "No valid ratings were available; rating-dependent insights "

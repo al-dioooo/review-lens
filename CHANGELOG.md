@@ -7,7 +7,22 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-No unreleased changes are recorded.
+### Fixed
+
+- Included `LICENSE` and `NOTICE` in built wheels and source distributions,
+  with standards-compliant wheel license-file metadata.
+- Preserved CSV sentinel-like text, leading zeros, blank records, and raw header
+  and record-width validation while reporting empty files as `InputError`.
+- Rejected structured review text and boolean or structured ratings at the
+  public input boundary.
+- Validated every public configuration field and nested section before loading
+  data, while preserving convenience-argument precedence.
+- Suppressed only expected K-Means convergence warnings for duplicate-heavy
+  candidates so successful API and quiet CLI calls remain silent.
+- Applied Unicode NFKC column normalization while retaining Unicode letters and
+  digits.
+- Classified `rating_unavailable` as a warning and included it in warning
+  diagnostic totals.
 
 ## [0.1.0] - 2026-07-15
 

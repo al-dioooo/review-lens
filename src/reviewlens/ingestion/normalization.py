@@ -1,18 +1,33 @@
 from __future__ import annotations
 
-import re
+import unicodedata
 
 import pandas as pd
 
 from reviewlens.exceptions import InputError
 
-_CASE_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-_SEPARATORS = re.compile(r"[^0-9A-Za-z]+")
-
 
 def normalize_column_name(name: str) -> str:
-    split = _CASE_BOUNDARY.sub("_", str(name))
-    return _SEPARATORS.sub("_", split).strip("_").lower()
+    text = unicodedata.normalize("NFKC", str(name))
+    normalized: list[str] = []
+    previous: str | None = None
+    for character in text:
+        if character.isalnum():
+            if (
+                normalized
+                and normalized[-1] != "_"
+                and character.isupper()
+                and previous is not None
+                and (previous.islower() or previous.isdigit())
+            ):
+                normalized.append("_")
+            normalized.append(character.lower())
+            previous = character
+        else:
+            if normalized and normalized[-1] != "_":
+                normalized.append("_")
+            previous = None
+    return "".join(normalized).strip("_")
 
 
 def normalize_columns(frame: pd.DataFrame) -> pd.DataFrame:

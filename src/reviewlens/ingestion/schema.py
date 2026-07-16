@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+from pandas.api.types import is_scalar
 
 from reviewlens.exceptions import InputError
 from reviewlens.ingestion.normalization import normalize_column_name, normalize_columns
@@ -107,13 +109,24 @@ def canonicalize_schema(
     _validate_unique_destinations(result.columns, assignments)
     result = result.rename(columns=assignments)
     result.insert(0, "source_row", range(1, len(result) + 1))
+    invalid_text = ~result["review_text"].map(is_scalar)
+    if bool(invalid_text.any()):
+        source_rows = result.loc[invalid_text, "source_row"].astype(int).tolist()
+        raise InputError(
+            f"Review text values must be scalar; invalid source rows: {source_rows}."
+        )
     diagnostics: list[Diagnostic] = []
     if "rating" not in result:
         result["rating"] = pd.Series(pd.NA, index=result.index, dtype="Float64")
     else:
         raw = result["rating"]
-        numeric = pd.to_numeric(raw, errors="coerce")
-        invalid = raw.notna() & (numeric.isna() | ~numeric.between(1, 5))
+        invalid_shape = raw.map(
+            lambda value: isinstance(value, (bool, np.bool_)) or not is_scalar(value)
+        )
+        numeric = pd.to_numeric(raw.mask(invalid_shape), errors="coerce")
+        invalid = raw.notna() & (
+            invalid_shape | numeric.isna() | ~numeric.between(1, 5)
+        )
         result["rating"] = numeric.mask(invalid).astype("Float64")
         if int(invalid.sum()):
             diagnostics.append(

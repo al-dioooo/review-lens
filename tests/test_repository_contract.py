@@ -151,6 +151,7 @@ def test_license_and_security_identity() -> None:
 def test_canonical_policy_texts_are_unmodified_except_for_contact() -> None:
     expected_hashes = {
         "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "NOTICE": "482de0e72743e09618060daba1c364a71c8b3c3ce32142a4f731d21d55564ecb",
         "CODE_OF_CONDUCT.md": (
             "99a08b9dd6f347f7610602fa1b79c3b55c7922cfea1c31569198d49f54e93a14"
         ),
@@ -249,7 +250,7 @@ def test_api_docs_track_public_exports_signature_and_config_sections() -> None:
             assert f"`{field.name}=" in content
 
 
-def test_api_docs_distinguish_prevalidated_and_downstream_config_errors(
+def test_api_docs_describe_central_and_data_dependent_config_validation(
     example_csv: Path,
 ) -> None:
     config = AnalysisConfig(vectorizer=VectorizerConfig(min_df=20))
@@ -257,16 +258,18 @@ def test_api_docs_distinguish_prevalidated_and_downstream_config_errors(
         analyze_reviews(example_csv, config=config)
 
     content = (ROOT / "docs/api.md").read_text(encoding="utf-8")
-    assert "explicitly validated subset" in content
+    assert "Every public configuration field is validated" in content
+    assert "before the input file is loaded" in content
     assert re.search(r"`min_df`\s+or\s+`max_df`", content)
-    assert "surface as `AnalysisError`" in content
+    assert "data-dependent feasibility" in content
+    assert re.search(r"raise\s+`AnalysisError`", content)
 
 
-def test_data_format_docs_match_ascii_only_column_normalization() -> None:
-    assert normalize_column_name("Téks Ulasan") == "t_ks_ulasan"
+def test_data_format_docs_match_unicode_column_normalization() -> None:
+    assert normalize_column_name("Téks Ulasan") == "téks_ulasan"
     content = (ROOT / "docs/data-format.md").read_text(encoding="utf-8")
-    assert "outside ASCII `[A-Za-z0-9]`" in content
-    assert "non-ASCII letters are separators" in content
+    assert "Unicode NFKC" in content
+    assert "Unicode letters and digits are retained" in content
 
 
 def test_link_matcher_includes_images_and_ignores_external_destinations() -> None:

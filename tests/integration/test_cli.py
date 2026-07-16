@@ -121,6 +121,75 @@ def test_cli_quiet_suppresses_success_output(tmp_path: Path) -> None:
     assert completed.stderr == ""
 
 
+def test_cli_quiet_duplicate_heavy_success_has_clean_stderr(tmp_path: Path) -> None:
+    source = tmp_path / "duplicates.csv"
+    source.write_text(
+        "text,rating\n"
+        "pelayanan lambat,1\n"
+        "pelayanan lambat,1\n"
+        "tempat bersih,5\n"
+        "tempat bersih,5\n"
+        "lokasi nyaman,4\n"
+        "lokasi nyaman,4\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "report.xlsx"
+
+    completed = _run(
+        "analyze",
+        str(source),
+        "--output",
+        str(output),
+        "--quiet",
+    )
+
+    assert completed.returncode == 0
+    assert output.is_file()
+    assert completed.stdout == ""
+    assert completed.stderr == ""
+
+
+@pytest.mark.parametrize("quiet", [False, True])
+def test_cli_structured_review_text_is_exit_two_without_traceback(
+    tmp_path: Path,
+    quiet: bool,
+) -> None:
+    source = tmp_path / "structured.json"
+    source.write_text(
+        json.dumps(
+            [
+                {"text": ["nested", "review"], "rating": 5},
+                {"text": "pelayanan cepat", "rating": 5},
+                {"text": "pelayanan lambat", "rating": 1},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    arguments = ["analyze", str(source)]
+    if quiet:
+        arguments.append("--quiet")
+
+    completed = _run(*arguments)
+
+    assert completed.returncode == 2
+    assert "error:" in completed.stderr.lower()
+    assert "Traceback" not in completed.stderr
+    if quiet:
+        assert completed.stdout == ""
+
+
+def test_cli_empty_csv_is_exit_two_without_traceback(tmp_path: Path) -> None:
+    source = tmp_path / "empty.csv"
+    source.write_bytes(b"")
+
+    completed = _run("analyze", str(source), "--quiet")
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert "error:" in completed.stderr.lower()
+    assert "Traceback" not in completed.stderr
+
+
 def test_installed_entrypoint_exposes_help_and_module_exposes_version() -> None:
     installed = _run_installed("--help")
     module = _run("--version")

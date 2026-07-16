@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 from scipy.sparse import csr_matrix  # type: ignore[import-untyped]
@@ -105,11 +107,13 @@ def test_auto_selects_the_greatest_silhouette(
 
 
 def test_fewer_unique_labels_invalidates_candidate() -> None:
-    with pytest.warns(ConvergenceWarning):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         candidate = fit_candidate(_collapsed_matrix(), 2, ClusteringConfig())
     assert not candidate.valid
     assert candidate.reason == "fewer_labels_than_requested"
     assert candidate.model is None
+    assert not any(item.category is ConvergenceWarning for item in caught)
 
 
 def test_silhouette_value_error_invalidates_candidate_with_reason(
@@ -159,18 +163,22 @@ def test_cosine_silhouette_sampling_is_seeded(
 
 
 def test_all_invalid_auto_candidates_raise_analysis_error() -> None:
-    with pytest.warns(ConvergenceWarning):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         with pytest.raises(AnalysisError, match="No candidate cluster count"):
             cluster_features(_collapsed_matrix(), ClusteringConfig())
+    assert not any(item.category is ConvergenceWarning for item in caught)
 
 
 def test_invalid_manual_candidate_raises_analysis_error() -> None:
-    with pytest.warns(ConvergenceWarning):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         with pytest.raises(AnalysisError, match="Manual cluster count 2 is invalid"):
             cluster_features(
                 _collapsed_matrix(),
                 ClusteringConfig(clusters=2),
             )
+    assert not any(item.category is ConvergenceWarning for item in caught)
 
 
 def test_auto_fits_each_candidate_once_and_reuses_winner(

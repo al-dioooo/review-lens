@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import subprocess
+import tarfile
 import tomllib
+import zipfile
+from email.parser import Parser
 from pathlib import Path
 
 import reviewlens
@@ -35,3 +39,45 @@ def test_runtime_has_no_out_of_scope_integrations() -> None:
     ]
     combined = "\n".join(path.read_text(encoding="utf-8").lower() for path in paths)
     assert not any(term in combined for term in banned)
+
+
+def test_built_archives_include_apache_license_and_notice(tmp_path: Path) -> None:
+    completed = subprocess.run(
+        ["uv", "build", "--no-sources", "--out-dir", str(tmp_path)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    wheel_path = next(tmp_path.glob("*.whl"))
+    sdist_path = next(tmp_path.glob("*.tar.gz"))
+    legal_payloads = {
+        name: (ROOT / name).read_bytes() for name in ("LICENSE", "NOTICE")
+    }
+    with zipfile.ZipFile(wheel_path) as wheel:
+        wheel_names = set(wheel.namelist())
+        metadata_name = next(
+            name for name in wheel_names if name.endswith(".dist-info/METADATA")
+        )
+        metadata = Parser().parsestr(wheel.read(metadata_name).decode("utf-8"))
+        for basename, expected in legal_payloads.items():
+            member_name = next(
+                name
+                for name in wheel_names
+                if name.endswith(f".dist-info/licenses/{basename}")
+            )
+            assert wheel.read(member_name) == expected
+
+    assert set(metadata.get_all("License-File", [])) == {"LICENSE", "NOTICE"}
+
+    with tarfile.open(sdist_path, mode="r:gz") as sdist:
+        sdist_names = set(sdist.getnames())
+        for basename, expected in legal_payloads.items():
+            member_name = next(
+                name for name in sdist_names if name.endswith(f"/{basename}")
+            )
+            member = sdist.extractfile(member_name)
+            assert member is not None
+            assert member.read() == expected

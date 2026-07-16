@@ -75,6 +75,15 @@ callers can import the nested types from `reviewlens.config`, or use
 | `InterpretationConfig` | `keyword_count=10`, `representative_count=3` |
 | `ProjectionConfig` | `components=2`, `sample_size=10_000`, `random_state=42` |
 
+Every public configuration field is validated, including every nested section,
+before the input file is loaded. Validation covers section and scalar types,
+boolean fields, tuple and token shapes, supported language and delimiters, and
+documented numeric bounds. Non-`None` convenience arguments are applied before
+the final effective configuration is validated, so an explicit valid
+`language=` or `clusters=` value can replace an invalid value in the immutable
+base configuration. Invalid effective configuration always raises
+`ConfigurationError`.
+
 Example of a derived immutable configuration:
 
 ```python
@@ -210,22 +219,21 @@ ReviewLensError
 ```
 
 - Catch `InputError` for missing/unsupported files, unreadable encoding,
-  malformed JSON, schema ambiguity/collisions, or no usable rows.
-- Catch `ConfigurationError` for the explicitly validated subset: an
-  unsupported language, an n-gram lower bound below one, reversed n-gram bounds,
-  non-positive `max_features`, or a manual cluster count outside its valid
-  range.
-- Catch `AnalysisError` for downstream vectorization failures,
-  empty/distinguishability-limited features, or an impossible clustering
-  result. Settings rejected by scikit-learn, such as incompatible `min_df` or
-  `max_df`, surface as `AnalysisError` rather than `ConfigurationError`.
+  malformed JSON, non-scalar review text, schema ambiguity/collisions, or no
+  usable rows.
+- Catch `ConfigurationError` for an invalid effective configuration field,
+  section type, collection shape, token, boolean, delimiter, or numeric bound.
+- Catch `AnalysisError` for data-dependent feasibility failures after valid
+  configuration and input have been established. For example, `min_df` or
+  `max_df` values that leave no terms for a particular dataset raise
+  `AnalysisError`, as do empty/distinguishability-limited features or an
+  impossible clustering result.
 - Catch `ExportError` for non-`.xlsx` destinations, protected existing targets,
   staging/validation failures, or unsuccessful installation/rollback.
 
 Catch `ReviewLensError` when an application wants one boundary for all expected
 user-facing failures. Unexpected programming or dependency errors are not
-wrapped universally. `ConfigurationError` is not a blanket classification for
-every invalid field in `VectorizerConfig`.
+wrapped universally.
 
 ## Excel export
 
