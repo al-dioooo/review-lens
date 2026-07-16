@@ -272,6 +272,18 @@ def test_json_integer_digit_limit_is_a_public_input_error(tmp_path: Path) -> Non
         load_dataset(path, config=IngestionConfig())
 
 
+def test_json_rejects_nesting_beyond_reviewlens_limit(tmp_path: Path) -> None:
+    path = tmp_path / "reviewlens-nesting-limit.json"
+    nested_value = "[" * 65 + "0" + "]" * 65
+    path.write_text(
+        '[{"text":"A","metadata":' + nested_value + "}]",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(InputError, match=r"(?i)nesting.*64"):
+        load_dataset(path, config=IngestionConfig())
+
+
 def test_json_recursion_limit_is_a_public_input_error(tmp_path: Path) -> None:
     path = tmp_path / "recursion-limit.json"
     nested_value = "[" * 1_100 + "0" + "]" * 1_100

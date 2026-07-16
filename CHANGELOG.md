@@ -14,8 +14,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Preserved CSV sentinel-like text, leading zeros, blank records, and raw header
   and record-width validation while reporting empty files and NUL characters as
   `InputError`.
-- Translated JSON digit/nesting limits into `InputError` and safely classified
-  extreme or non-finite ratings without pandas overflow or CLI tracebacks.
+- Translated JSON digit limits into `InputError`, enforced a deterministic
+  64-container nesting limit, and safely classified extreme or non-finite
+  ratings without pandas overflow or CLI tracebacks.
 - Preserved explicit JSON `NaN`/infinity rating provenance for invalid-rating
   diagnostics and exported out-of-range Python integers as exact decimal text
   without mutating analysis results.

@@ -71,8 +71,10 @@ preserved in memory:
 
 JSON must be UTF-8 and parse as a list or object. A non-object list member is an
 input error; malformed records are never skipped. Decoder failures, including
-integer-digit and nesting-depth limits enforced by Python, are reported as
-`InputError` rather than leaking implementation exceptions.
+integer-digit limits enforced by Python, are reported as `InputError` rather
+than leaking implementation exceptions. ReviewLens also rejects input deeper
+than 64 nested JSON container levels, consistently across supported Python
+versions.
 
 ## JSON object
 
