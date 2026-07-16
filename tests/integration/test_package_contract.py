@@ -46,6 +46,21 @@ def test_ci_covers_supported_pythons_and_platform_smoke() -> None:
     )
 
 
+def test_release_workflow_uses_separated_trusted_publishing() -> None:
+    workflow = (ROOT / ".github/workflows/publish.yml").read_text(encoding="utf-8")
+    assert "release:\n    types: [published]" in workflow
+    assert 'test "${{ github.event.release.tag_name }}" = "v$(uv version --short)"' in workflow
+    assert re.search(r"^  build:\n", workflow, flags=re.MULTILINE)
+    assert re.search(r"^  publish:\n", workflow, flags=re.MULTILINE)
+    assert "needs: build" in workflow
+    assert "environment:\n      name: pypi" in workflow
+    assert workflow.count("id-token: write") == 1
+    assert "pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b" in workflow
+    assert not re.search(r"password|api[_-]?token|secrets\.", workflow, flags=re.IGNORECASE)
+    for action in re.findall(r"uses: [^@\n]+@([^\s#]+)", workflow):
+        assert re.fullmatch(r"[0-9a-f]{40}", action)
+
+
 def test_runtime_has_no_out_of_scope_integrations() -> None:
     banned = ("apify", "dotenv", "mcp", "openai", "scrap")
     paths = [
