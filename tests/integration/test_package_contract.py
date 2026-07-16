@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import tarfile
 import tomllib
@@ -28,6 +29,7 @@ def test_ci_covers_supported_pythons_and_platform_smoke() -> None:
         assert value in workflow
     for value in ("ubuntu-latest", "macos-latest", "windows-latest", "production"):
         assert value in workflow
+    assert re.search(r"astral-sh/setup-uv@v\d+\.\d+\.\d+\b", workflow)
 
 
 def test_runtime_has_no_out_of_scope_integrations() -> None:
