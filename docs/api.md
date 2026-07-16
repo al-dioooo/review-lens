@@ -114,6 +114,9 @@ data while retaining the requested manual `k`.
 `AnalysisResult` is a frozen container, but its pandas frames and dictionaries
 should be treated as caller-owned mutable data. Export sanitizes copies and does
 not mutate any result component.
+Preserved Python integers outside Excel's floating-point range remain integers
+in `AnalysisResult` and are written as exact decimal strings only in the
+sanitized workbook representation.
 
 ### `reviews`
 

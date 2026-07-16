@@ -280,6 +280,52 @@ def test_truncation_diagnostic_does_not_mutate_analysis_state(tmp_path: Path) ->
     assert result.diagnostics is diagnostics_before
 
 
+def test_export_stringifies_huge_preserved_integer_without_mutating_result(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "huge-preserved-value.json"
+    huge = 10**1_000
+    texts = [
+        "pelayanan lambat antre",
+        "antre lama pelayanan",
+        "petugas lambat antre",
+        "tempat bersih nyaman",
+        "bersih rapi nyaman",
+        "lokasi nyaman bersih",
+    ]
+    source.write_text(
+        json.dumps(
+            [
+                {
+                    "text": text,
+                    "rating": 5,
+                    "external_id": huge if index == 0 else index,
+                }
+                for index, text in enumerate(texts)
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = analyze_reviews(source, clusters=2)
+    in_memory = result.reviews.loc[0, "external_id"]
+    assert isinstance(in_memory, int)
+    assert in_memory == huge
+
+    output = tmp_path / "report.xlsx"
+    result.export_excel(output)
+
+    workbook = load_workbook(output, read_only=True, data_only=False)
+    try:
+        headers = [cell.value for cell in workbook["reviews"][1]]
+        external_id_column = headers.index("external_id") + 1
+        assert workbook["reviews"].cell(2, external_id_column).value == str(huge)
+    finally:
+        workbook.close()
+    assert result.reviews.loc[0, "external_id"] == huge
+    assert isinstance(result.reviews.loc[0, "external_id"], int)
+
+
 def test_export_does_not_mutate_any_analysis_result_component(tmp_path: Path) -> None:
     result = analyze_reviews(_source(tmp_path), clusters=2)
     frame_names = ("reviews", "clusters", "summary", "keywords", "evaluation")

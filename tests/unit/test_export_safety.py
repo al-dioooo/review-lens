@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,29 @@ def test_structured_values_use_canonical_json() -> None:
     assert safe_excel_value({"b": 2, "a": 1})[0] == '{"a": 1, "b": 2}'
     assert safe_excel_value(("b", "a"))[0] == '["b", "a"]'
     assert safe_excel_value([{"b": 2, "a": 1}])[0] == '[{"a": 1, "b": 2}]'
+
+
+def test_integers_beyond_excel_float_range_are_stringified_safely() -> None:
+    huge = 10**1_000
+    negative_huge = -huge
+
+    assert safe_excel_value(huge) == (str(huge), False)
+    assert safe_excel_value(negative_huge) == ("'" + str(negative_huge), False)
+    assert safe_excel_value(10**100) == (10**100, False)
+
+
+def test_stringified_huge_integer_still_uses_excel_text_safeguards() -> None:
+    previous_limit = sys.get_int_max_str_digits()
+    try:
+        sys.set_int_max_str_digits(0)
+        value, truncated = safe_excel_value(-(10**40_000))
+    finally:
+        sys.set_int_max_str_digits(previous_limit)
+
+    assert truncated is True
+    assert isinstance(value, str)
+    assert value.startswith("'-")
+    assert len(value) == 32_767
 
 
 def test_missing_values_and_paths_are_normalized() -> None:

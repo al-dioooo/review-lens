@@ -16,6 +16,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `InputError`.
 - Translated JSON digit/nesting limits into `InputError` and safely classified
   extreme or non-finite ratings without pandas overflow or CLI tracebacks.
+- Preserved explicit JSON `NaN`/infinity rating provenance for invalid-rating
+  diagnostics and exported out-of-range Python integers as exact decimal text
+  without mutating analysis results.
 - Rejected structured review text and boolean or structured ratings at the
   public input boundary.
 - Validated every public configuration field and nested section before loading

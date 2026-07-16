@@ -12,7 +12,10 @@ RECORD_KEYS = ("reviews", "data", "items", "results")
 
 def load_json_frame(path: Path, records_key: str | None) -> pd.DataFrame:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=str,
+        )
     except (OSError, UnicodeError, ValueError, RecursionError) as error:
         raise InputError(f"Cannot read JSON dataset {path.name}: {error}") from error
     if isinstance(value, list):

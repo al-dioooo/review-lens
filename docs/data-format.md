@@ -217,6 +217,11 @@ Boolean and structured rating values are also invalid rather than being
 coerced to numbers or strings. The canonical rating column always uses pandas'
 nullable `Float64` dtype.
 
+Python's JSON decoder accepts the non-standard constants `NaN`, `Infinity`,
+and `-Infinity`. ReviewLens retains those supplied tokens through decoding so
+ratings using them are counted as invalid. Omitted rating fields and explicit
+JSON `null` remain genuine missing values and do not increment the warning.
+
 An invalid rating never excludes otherwise usable review text. Average ratings,
 rating signals, summaries, and rating charts ignore missing values. When the
 entire dataset has no valid rating, ReviewLens records a warning
@@ -228,6 +233,9 @@ ReviewLens preserves optional `timestamp`, `location`, and `metadata` values
 without semantic parsing in v0.1.0. It also preserves every unrecognized record
 field after column normalization. Nested JSON metadata remains a Python value in
 memory and is serialized as canonical key-sorted JSON for Excel export.
+Python integers outside Excel's floating-point range likewise remain exact
+integers in memory; the sanitized export copy stores their exact decimal text so
+workbook generation cannot overflow.
 
 The report metadata records only the source basename, input SHA-256, effective
 configuration, versions, timestamp, row counts, selected `k`, and diagnostic

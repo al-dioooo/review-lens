@@ -216,6 +216,33 @@ def test_json_huge_rating_is_invalid_without_overflow(tmp_path: Path) -> None:
     assert "finite numeric values from 1 to 5" in loaded.diagnostics[0].message
 
 
+def test_json_nonfinite_constants_are_invalid_but_missing_is_not(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "nonfinite-ratings.json"
+    path.write_text(
+        "["
+        '{"text":"A","rating":NaN},'
+        '{"text":"B","rating":Infinity},'
+        '{"text":"C","rating":-Infinity},'
+        '{"text":"D"},'
+        '{"text":"E","rating":null},'
+        '{"text":"F","rating":5}'
+        "]",
+        encoding="utf-8",
+    )
+
+    loaded = load_dataset(path, config=IngestionConfig())
+
+    assert loaded.frame["rating"].iloc[:5].isna().all()
+    assert loaded.frame.loc[5, "rating"] == 5.0
+    assert loaded.frame["rating"].dtype == pd.Float64Dtype()
+    assert len(loaded.diagnostics) == 1
+    assert loaded.diagnostics[0].severity == "warning"
+    assert loaded.diagnostics[0].code == "invalid_rating"
+    assert loaded.diagnostics[0].count == 3
+
+
 def test_rating_coercion_keeps_missing_unflagged_and_rejects_nonfinite(
     tmp_path: Path,
 ) -> None:

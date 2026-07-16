@@ -32,6 +32,11 @@ def safe_excel_value(value: object) -> tuple[object, bool]:
         value = json.dumps(value, ensure_ascii=False, sort_keys=True)
     elif isinstance(value, Path):
         value = str(value)
+    elif isinstance(value, int):
+        try:
+            float(value)
+        except OverflowError:
+            value = str(value)
 
     if not isinstance(value, str):
         return value, False
