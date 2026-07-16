@@ -16,11 +16,21 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_package_metadata_and_version_are_consistent() -> None:
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     project = metadata["project"]
-    assert project["name"] == "reviewlens"
+    assert project["name"] == "review-lens"
     assert project["version"] == reviewlens.__version__ == "0.1.0"
     assert project["requires-python"] == ">=3.11"
     assert project["license"] == "Apache-2.0"
     assert project["scripts"]["reviewlens"] == "reviewlens.cli:main"
+    assert metadata["tool"]["uv"]["build-backend"]["module-name"] == "reviewlens"
+
+
+def test_initial_pypi_release_is_documented() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "python -m pip install review-lens" in readme
+    assert "These commands install local source" not in readme
+    assert "## [Unreleased]\n\n## [0.1.0] - 2026-07-16" in changelog
+    assert changelog.index("### Fixed") > changelog.index("## [0.1.0]")
 
 
 def test_ci_covers_supported_pythons_and_platform_smoke() -> None:

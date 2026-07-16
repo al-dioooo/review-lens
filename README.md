@@ -29,28 +29,24 @@ integration are not part of v0.1.0.
 
 ## Installation
 
-ReviewLens requires Python 3.11 or newer. Install from a source checkout with
-[uv](https://docs.astral.sh/uv/) as an isolated command-line tool:
+ReviewLens requires Python 3.11 or newer. Install the published package from
+PyPI, preferably inside a virtual environment:
 
 ```bash
-uv tool install .
+python -m pip install review-lens
 ```
 
-For development, create the locked project environment instead:
+To install it as an isolated command-line tool instead:
+
+```bash
+uv tool install review-lens
+```
+
+For development from a source checkout, create the locked project environment:
 
 ```bash
 uv sync --all-groups --locked
 ```
-
-You can also install the checkout with pip, preferably inside a virtual
-environment:
-
-```bash
-python -m pip install .
-```
-
-These commands install local source; this document does not assume a package
-registry release.
 
 ## Quick start
 
