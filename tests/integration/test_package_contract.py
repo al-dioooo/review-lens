@@ -30,6 +30,10 @@ def test_ci_covers_supported_pythons_and_platform_smoke() -> None:
     for value in ("ubuntu-latest", "macos-latest", "windows-latest", "production"):
         assert value in workflow
     assert re.search(r"astral-sh/setup-uv@v\d+\.\d+\.\d+\b", workflow)
+    assert re.search(
+        r"if: matrix\.python-version == '3\.11'\n\s+run: uv run mypy src tests",
+        workflow,
+    )
 
 
 def test_runtime_has_no_out_of_scope_integrations() -> None:

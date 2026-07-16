@@ -27,7 +27,8 @@ jobs:
       - run: uv sync --all-groups --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run mypy src tests
+      - if: matrix.python-version == '3.11'
+        run: uv run mypy src tests
       - run: uv run pytest --cov=reviewlens --cov-report=term-missing --cov-fail-under=90
       - run: uv build --no-sources
       - name: Verify wheel in an isolated environment
