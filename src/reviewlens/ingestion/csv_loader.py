@@ -9,6 +9,14 @@ from reviewlens.exceptions import InputError
 from reviewlens.ingestion.normalization import normalize_columns
 
 
+def _reject_nul(fields: list[str], location: str) -> None:
+    if any("\0" in field for field in fields):
+        raise InputError(
+            f"CSV {location} contains a NUL character; "
+            "remove NUL bytes and re-export the file."
+        )
+
+
 def _read_header(path: Path, delimiter: str) -> list[str]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.reader(handle, delimiter=delimiter)
@@ -18,8 +26,10 @@ def _read_header(path: Path, delimiter: str) -> list[str]:
             raise InputError(
                 f"Cannot read CSV dataset {path.name}: file is empty."
             ) from error
+        _reject_nul(header, "header")
         normalize_columns(pd.DataFrame(columns=header))
         for record_number, record in enumerate(reader, start=2):
+            _reject_nul(record, f"record {record_number}")
             if len(record) > len(header):
                 raise InputError(
                     f"CSV record {record_number} has {len(record)} fields but "

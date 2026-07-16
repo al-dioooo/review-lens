@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -35,6 +37,20 @@ class LoadedDataset:
     source_sha256: str
     source_stem: str
     diagnostics: tuple[Diagnostic, ...]
+
+
+def _coerce_rating(value: object) -> tuple[float | None, bool]:
+    if isinstance(value, (bool, np.bool_)) or not is_scalar(value):
+        return None, True
+    if value is None or bool(pd.isna(cast(Any, value))):
+        return None, False
+    try:
+        numeric = float(cast(Any, value))
+    except (TypeError, ValueError, OverflowError):
+        return None, True
+    if not math.isfinite(numeric) or not 1 <= numeric <= 5:
+        return None, True
+    return numeric, False
 
 
 def _select_column(
@@ -120,21 +136,23 @@ def canonicalize_schema(
         result["rating"] = pd.Series(pd.NA, index=result.index, dtype="Float64")
     else:
         raw = result["rating"]
-        invalid_shape = raw.map(
-            lambda value: isinstance(value, (bool, np.bool_)) or not is_scalar(value)
+        coerced = [_coerce_rating(value) for value in raw.tolist()]
+        result["rating"] = pd.Series(
+            [value for value, _invalid in coerced],
+            index=result.index,
+            dtype="Float64",
         )
-        numeric = pd.to_numeric(raw.mask(invalid_shape), errors="coerce")
-        invalid = raw.notna() & (
-            invalid_shape | numeric.isna() | ~numeric.between(1, 5)
-        )
-        result["rating"] = numeric.mask(invalid).astype("Float64")
-        if int(invalid.sum()):
+        invalid_count = sum(invalid for _value, invalid in coerced)
+        if invalid_count:
             diagnostics.append(
                 Diagnostic(
                     severity="warning",
                     code="invalid_rating",
-                    message="Ratings outside numeric range 1-5 were ignored.",
-                    count=int(invalid.sum()),
+                    message=(
+                        "Invalid ratings were ignored; ratings must be finite "
+                        "numeric values from 1 to 5."
+                    ),
+                    count=invalid_count,
                 )
             )
     for canonical in OPTIONAL_ALIASES:

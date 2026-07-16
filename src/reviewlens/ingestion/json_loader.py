@@ -13,7 +13,7 @@ RECORD_KEYS = ("reviews", "data", "items", "results")
 def load_json_frame(path: Path, records_key: str | None) -> pd.DataFrame:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeError, ValueError, RecursionError) as error:
         raise InputError(f"Cannot read JSON dataset {path.name}: {error}") from error
     if isinstance(value, list):
         records = value
@@ -34,4 +34,4 @@ def load_json_frame(path: Path, records_key: str | None) -> pd.DataFrame:
         raise InputError("JSON root must be an array or object.")
     if not all(isinstance(record, dict) for record in records):
         raise InputError("Every JSON review record must be an object.")
-    return pd.DataFrame.from_records(records)
+    return pd.DataFrame(records, dtype=object)

@@ -269,7 +269,9 @@ def test_data_format_docs_match_unicode_column_normalization() -> None:
     assert normalize_column_name("Téks Ulasan") == "téks_ulasan"
     content = (ROOT / "docs/data-format.md").read_text(encoding="utf-8")
     assert "Unicode NFKC" in content
-    assert "Unicode letters and digits are retained" in content
+    assert (
+        "Unicode letters, digits, and attached combining marks are retained" in content
+    )
 
 
 def test_link_matcher_includes_images_and_ignores_external_destinations() -> None:

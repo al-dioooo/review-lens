@@ -190,6 +190,87 @@ def test_cli_empty_csv_is_exit_two_without_traceback(tmp_path: Path) -> None:
     assert "Traceback" not in completed.stderr
 
 
+def test_cli_quiet_huge_rating_is_ignored_without_traceback(tmp_path: Path) -> None:
+    source = tmp_path / "huge-rating.json"
+    output = tmp_path / "report.xlsx"
+    huge_rating = "9" * 1_001
+    payload = json.dumps(
+        [
+            {"text": "pelayanan lambat antre", "rating": "__HUGE_RATING__"},
+            {"text": "antre lama pelayanan", "rating": 1},
+            {"text": "petugas lambat antre", "rating": 2},
+            {"text": "tempat bersih nyaman", "rating": 5},
+            {"text": "bersih rapi nyaman", "rating": 4},
+            {"text": "lokasi nyaman bersih", "rating": None},
+        ]
+    ).replace('"__HUGE_RATING__"', huge_rating)
+    source.write_text(payload, encoding="utf-8")
+
+    completed = _run(
+        "analyze",
+        str(source),
+        "--clusters",
+        "2",
+        "--output",
+        str(output),
+        "--quiet",
+    )
+
+    assert completed.returncode == 0
+    assert output.is_file()
+    assert completed.stdout == ""
+    assert completed.stderr == ""
+
+
+def test_cli_quiet_json_digit_limit_is_exit_two_without_traceback(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "digit-limit.json"
+    source.write_text(
+        '[{"text":"A","rating":' + "9" * 5_000 + "}]",
+        encoding="utf-8",
+    )
+
+    completed = _run("analyze", str(source), "--quiet")
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert "error:" in completed.stderr.lower()
+    assert "Cannot read JSON" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+
+def test_cli_quiet_json_recursion_limit_is_exit_two_without_traceback(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "recursion-limit.json"
+    nested_value = "[" * 1_100 + "0" + "]" * 1_100
+    source.write_text(
+        '[{"text":"A","metadata":' + nested_value + "}]",
+        encoding="utf-8",
+    )
+
+    completed = _run("analyze", str(source), "--quiet")
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert "error:" in completed.stderr.lower()
+    assert "Cannot read JSON" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+
+def test_cli_quiet_nul_csv_is_exit_two_without_traceback(tmp_path: Path) -> None:
+    source = tmp_path / "nul.csv"
+    source.write_bytes(b"text,rating\nabc\x00def,5\n")
+
+    completed = _run("analyze", str(source), "--quiet")
+
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert "NUL" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+
 def test_installed_entrypoint_exposes_help_and_module_exposes_version() -> None:
     installed = _run_installed("--help")
     module = _run("--version")

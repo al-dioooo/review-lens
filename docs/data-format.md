@@ -20,6 +20,9 @@ validated before pandas can rename duplicate columns, so duplicate, empty, or
 normalization-colliding names are fatal input errors. Empty and zero-byte files
 also raise `InputError`. A record with more fields than the raw header has
 columns is rejected rather than allowing a parser to shift or discard values.
+NUL characters in either the header or a record are rejected with `InputError`
+before the tabular parser can truncate the affected field; re-export the source
+without NUL bytes.
 
 A complete synthetic CSV with aliases, all optional fields, and an additional
 preserved column looks like this:
@@ -67,7 +70,9 @@ preserved in memory:
 ```
 
 JSON must be UTF-8 and parse as a list or object. A non-object list member is an
-input error; malformed records are never skipped.
+input error; malformed records are never skipped. Decoder failures, including
+integer-digit and nesting-depth limits enforced by Python, are reported as
+`InputError` rather than leaking implementation exceptions.
 
 ## JSON object
 
@@ -120,18 +125,21 @@ Before aliases are resolved, ReviewLens:
 
 1. applies Unicode NFKC normalization;
 2. inserts underscores at lower/digit-to-uppercase case transitions;
-3. replaces each run of characters that is not a Unicode letter or digit with
-   one underscore;
-4. strips leading/trailing underscores; and
-5. lowercases the result.
+3. retains Unicode letters, digits, and combining marks attached to a preceding
+   letter or digit;
+4. replaces other character runs with one underscore and discards unattached
+   combining marks;
+5. strips leading/trailing underscores; and
+6. lowercases and NFKC-normalizes the result again.
 
-Unicode letters and digits are retained, while punctuation and whitespace are
-separators. For example, `reviewText` becomes `review_text`, `createdAt`
-becomes `created_at`, `Customer Segment` becomes `customer_segment`, and `Téks
-Ulasan` becomes `téks_ulasan`. Compatibility forms are folded first, so
-`Ｔｅｘｔ` becomes `text`. An empty normalized name or a collision such as
-`reviewText` plus `review_text` is a fatal `InputError`; neither source column
-is silently discarded.
+Unicode letters, digits, and attached combining marks are retained, while
+punctuation and whitespace are separators. Normalization is idempotent. For
+example, `reviewText` becomes `review_text`, `createdAt` becomes `created_at`,
+`Customer Segment` becomes `customer_segment`, and `Téks Ulasan` becomes
+`téks_ulasan`. Compatibility forms are folded first, so `Ｔｅｘｔ` becomes
+`text`. An empty normalized name or a collision such as `reviewText` plus
+`review_text` is a fatal `InputError`; neither source column is silently
+discarded.
 
 ## Canonical fields and aliases
 
@@ -202,10 +210,12 @@ raises `InputError` rather than producing an empty report.
 
 Ratings are optional. If no rating field exists, ReviewLens adds a nullable
 `rating` column and analysis continues. Missing JSON values, JSON `null`, and
-empty CSV cells remain missing. A supplied non-numeric value or number outside
-the inclusive range 1–5 becomes missing and contributes to an `invalid_rating`
-warning count. Boolean and structured rating values are also invalid rather
-than being coerced to numbers or strings.
+empty CSV cells remain missing. A supplied non-numeric or non-finite value, an
+integer too large to convert safely, or a number outside the inclusive range
+1–5 becomes missing and contributes to an `invalid_rating` warning count.
+Boolean and structured rating values are also invalid rather than being
+coerced to numbers or strings. The canonical rating column always uses pandas'
+nullable `Float64` dtype.
 
 An invalid rating never excludes otherwise usable review text. Average ratings,
 rating signals, summaries, and rating charts ignore missing values. When the

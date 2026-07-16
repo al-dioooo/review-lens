@@ -218,9 +218,9 @@ ReviewLensError
 └── ExportError
 ```
 
-- Catch `InputError` for missing/unsupported files, unreadable encoding,
-  malformed JSON, non-scalar review text, schema ambiguity/collisions, or no
-  usable rows.
+- Catch `InputError` for missing/unsupported files, unreadable encoding, CSV
+  NUL characters, malformed or decoder-limited JSON, non-scalar review text,
+  schema ambiguity/collisions, or no usable rows.
 - Catch `ConfigurationError` for an invalid effective configuration field,
   section type, collection shape, token, boolean, delimiter, or numeric bound.
 - Catch `AnalysisError` for data-dependent feasibility failures after valid

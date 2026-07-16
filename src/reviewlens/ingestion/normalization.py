@@ -10,24 +10,29 @@ from reviewlens.exceptions import InputError
 def normalize_column_name(name: str) -> str:
     text = unicodedata.normalize("NFKC", str(name))
     normalized: list[str] = []
-    previous: str | None = None
+    previous_base: str | None = None
     for character in text:
-        if character.isalnum():
+        category = unicodedata.category(character)[0]
+        if category in {"L", "N"}:
             if (
                 normalized
                 and normalized[-1] != "_"
                 and character.isupper()
-                and previous is not None
-                and (previous.islower() or previous.isdigit())
+                and previous_base is not None
+                and (previous_base.islower() or previous_base.isdigit())
             ):
                 normalized.append("_")
-            normalized.append(character.lower())
-            previous = character
+            normalized.append(character)
+            previous_base = character
+        elif category == "M":
+            if previous_base is not None and normalized and normalized[-1] != "_":
+                normalized.append(character)
         else:
             if normalized and normalized[-1] != "_":
                 normalized.append("_")
-            previous = None
-    return "".join(normalized).strip("_")
+            previous_base = None
+    lowered = "".join(normalized).strip("_").lower()
+    return unicodedata.normalize("NFKC", lowered)
 
 
 def normalize_columns(frame: pd.DataFrame) -> pd.DataFrame:
