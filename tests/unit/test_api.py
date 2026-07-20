@@ -5,6 +5,7 @@ import json
 import warnings
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta
+from importlib.metadata import version as distribution_version
 from pathlib import Path
 from typing import Any, cast
 
@@ -13,6 +14,7 @@ import pandas as pd
 import pytest
 from sklearn.exceptions import ConvergenceWarning  # type: ignore[import-untyped]
 
+import reviewlens
 from reviewlens import (
     AnalysisConfig,
     AnalysisResult,
@@ -532,6 +534,20 @@ def test_metadata_records_reproducibility_inputs_without_source_path(
     assert "source_path" not in metadata
     assert str(source.resolve()) not in repr(metadata)
     assert result.source_stem == "reviews"
+
+
+def test_metadata_uses_distribution_identity_without_renaming_public_contract(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "reviews.csv"
+    _write_reviews(source)
+    expected_version = distribution_version("review-lens")
+
+    result = reviewlens.analyze_reviews(source, clusters=2)
+
+    assert reviewlens.__version__ == expected_version
+    assert result.metadata["reviewlens_version"] == expected_version
+    assert "review-lens_version" not in result.metadata
 
 
 def test_diagnostics_are_aggregated_in_stage_order(tmp_path: Path) -> None:
