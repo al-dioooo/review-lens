@@ -61,7 +61,7 @@ This selects `k` automatically and writes `sample_reviews-reviewlens.xlsx` plus
 `sample_reviews-reviewlens_charts/` in the current directory. Existing targets
 are protected; pass `--force` only when you intend to replace both.
 
-The PRD-style advanced command chooses columns explicitly and names the output:
+The advanced form chooses columns explicitly and names the output:
 
 ```bash
 reviewlens analyze reviews.csv --text-column text --rating-column rating --language id --clusters auto --output report.xlsx
