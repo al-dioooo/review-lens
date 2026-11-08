@@ -222,6 +222,21 @@ uv run reviewlens analyze examples/sample_reviews.csv
 opening a pull request, run the
 [quality checks](CONTRIBUTING.md#tests-and-quality-checks) that CI enforces.
 
+## Releases
+
+ReviewLens follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
+and notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+Development happens on `main`, the trunk and default branch. `production` holds
+the most recently released version. To release, a maintainer merges `main` into
+`production` through a release pull request, then publishes a GitHub release
+with a `vX.Y.Z` tag. Publishing the release runs the
+[publish workflow](.github/workflows/publish.yml). It verifies that the tag
+matches the package version, builds the wheel and source distribution, and
+uploads them to PyPI through trusted publishing, so no API token is stored in
+the repository. The step-by-step release checklist is in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Roadmap
 
 ### v0.2.0
