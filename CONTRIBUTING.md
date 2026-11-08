@@ -37,7 +37,7 @@ ReviewLens uses trunk-based development with two long-lived branches:
 | Branch | Role |
 | --- | --- |
 | `main` | Trunk and default branch. It is always releasable, and every change lands here through a pull request. |
-| `production` | Release branch. It holds the most recently released version and only moves through a release pull request from `main`. |
+| `production` | Release branch. It holds the most recently released version and only moves through a release pull request from `main` (see [Releases](#releases)). |
 
 Never commit directly to `main` or `production`. Create a short-lived branch
 from the current `main` and name it after the kind of change:
@@ -171,6 +171,46 @@ Contributions must stay inside the current product scope: local analysis of
 user-provided CSV or JSON files. Scrapers, hosted services, external or local
 generative AI, runtime downloads, dashboards, plugin systems, and MCP behavior
 are outside v0.1.x.
+
+## Releases
+
+Maintainers release from `main` when it holds the changes to ship. ReviewLens
+follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+1. **Prepare the version on `main`.** Open an issue and a
+   `chore(release): prepare vX.Y.Z (#<issue>)` pull request that moves the
+   `[Unreleased]` entries in `CHANGELOG.md` under a new `[X.Y.Z]` heading and
+   bumps the version everywhere it is pinned: `pyproject.toml`,
+   `src/reviewlens/__init__.py`, `uv.lock` (run `uv lock`), and the version
+   assertions in `.github/workflows/ci.yml`, the tests, and the docs.
+   `git grep -n "<previous version>"` finds them. Merge it like any other pull
+   request.
+2. **Promote `main` to `production`.** Open a release pull request from `main`
+   into `production` with the same issue number, wait for CI, and merge it with
+   a **merge commit**, not a squash. A merge commit keeps the exact `main`
+   history on `production`, so `production` stays a descendant of `main` and
+   the next release pull request merges cleanly. Never delete the head branch
+   of this pull request.
+
+   ```bash
+   gh pr create --base production --head main --title "chore(release): vX.Y.Z (#<issue>)"
+   gh pr merge <number> --merge
+   ```
+
+3. **Tag and publish.** Create a GitHub release with a new `vX.Y.Z` tag on
+   `production`, using the `CHANGELOG.md` section as the release notes:
+
+   ```bash
+   gh release create vX.Y.Z --target production --title vX.Y.Z --notes-file notes.md
+   ```
+
+   Publishing the release runs `.github/workflows/publish.yml`. It checks that
+   the tag equals `v` plus the package version, builds and validates the
+   distributions, and uploads them to PyPI through trusted publishing in the
+   `pypi` environment. No PyPI token is stored in the repository.
+
+Urgent fixes take the same path: a `fix/...` pull request into `main`, then a
+release. `production` never receives changes that are not already on `main`.
 
 ## Reporting security issues
 
