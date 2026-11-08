@@ -27,6 +27,19 @@ support languages other than Indonesian, or replace an enterprise BI system.
 HTML reports, plugin interfaces, custom analyzer protocols, dashboards, and MCP
 integration are not part of v0.1.0.
 
+## Tech stack
+
+| Area | Tools |
+| --- | --- |
+| Language | Python 3.11–3.14, fully type-annotated (`py.typed`) |
+| Data handling | pandas and NumPy |
+| Indonesian text processing | Sastrawi stemming and stopwords, plus a bundled slang dictionary |
+| Features and clustering | scikit-learn TF-IDF, K-Means, silhouette scoring, and TruncatedSVD, on SciPy sparse matrices |
+| Reports | openpyxl with Pillow for the Excel workbook and embedded images, and matplotlib for PNG charts |
+| Packaging | uv with the `uv_build` backend; the distribution is named `review-lens` |
+| Quality | pytest with pytest-cov, Ruff for linting and formatting, and strict mypy |
+| CI/CD | GitHub Actions: the full suite on Linux for Python 3.11–3.14, smoke tests on macOS and Windows, and PyPI trusted publishing on release |
+
 ## Installation
 
 ReviewLens requires Python 3.11 or newer. Install the published package from
