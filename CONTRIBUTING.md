@@ -42,13 +42,15 @@ Run the smallest relevant test while developing. For example:
 uv run pytest tests/unit/test_ingestion.py -q
 ```
 
-Before submitting, run the complete local gates:
+Before every commit, run the complete local gates. They match the checks in
+CI:
 
 ```bash
-uv run pytest
+uv sync --all-groups --locked
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy
+uv run mypy src tests
+uv run pytest --cov=reviewlens --cov-fail-under=90
 ```
 
 Coverage must remain at least 90%. When changing packaging or the CLI, also
