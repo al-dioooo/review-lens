@@ -206,6 +206,22 @@ typical developer laptop; this is a design target, not a timing guarantee. For
 constrained machines, lower `max_features`, choose `k` manually, or avoid the
 manual evaluation range.
 
+## Development
+
+Development uses uv 0.11 (the `required-version` in `pyproject.toml`) and the
+committed lockfile. To set up a checkout and run the CLI from source:
+
+```bash
+git clone https://github.com/al-dioooo/review-lens.git
+cd review-lens
+uv sync --all-groups --locked
+uv run reviewlens analyze examples/sample_reviews.csv
+```
+
+`uv run` executes commands inside the locked project environment. Before
+opening a pull request, run the
+[quality checks](CONTRIBUTING.md#tests-and-quality-checks) that CI enforces.
+
 ## Roadmap
 
 ### v0.2.0
