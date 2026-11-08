@@ -27,6 +27,19 @@ support languages other than Indonesian, or replace an enterprise BI system.
 HTML reports, plugin interfaces, custom analyzer protocols, dashboards, and MCP
 integration are not part of v0.1.0.
 
+## Tech stack
+
+| Area | Tools |
+| --- | --- |
+| Language | Python 3.11–3.14, fully type-annotated (`py.typed`) |
+| Data handling | pandas and NumPy |
+| Indonesian text processing | Sastrawi stemming and stopwords, plus a bundled slang dictionary |
+| Features and clustering | scikit-learn TF-IDF, K-Means, silhouette scoring, and TruncatedSVD, on SciPy sparse matrices |
+| Reports | openpyxl with Pillow for the Excel workbook and embedded images, and matplotlib for PNG charts |
+| Packaging | uv with the `uv_build` backend; the distribution is named `review-lens` |
+| Quality | pytest with pytest-cov, Ruff for linting and formatting, and strict mypy |
+| CI/CD | GitHub Actions: the full suite on Linux for Python 3.11–3.14, smoke tests on macOS and Windows, and PyPI trusted publishing on release |
+
 ## Installation
 
 ReviewLens requires Python 3.11 or newer. Install the published package from
@@ -61,7 +74,7 @@ This selects `k` automatically and writes `sample_reviews-reviewlens.xlsx` plus
 `sample_reviews-reviewlens_charts/` in the current directory. Existing targets
 are protected; pass `--force` only when you intend to replace both.
 
-The PRD-style advanced command chooses columns explicitly and names the output:
+The advanced form chooses columns explicitly and names the output:
 
 ```bash
 reviewlens analyze reviews.csv --text-column text --rating-column rating --language id --clusters auto --output report.xlsx
@@ -164,6 +177,14 @@ store and share them according to the source dataset's privacy requirements.
 Formula-like text is neutralized for Excel safety, but that does not anonymize
 the content.
 
+## Configuration and environment variables
+
+ReviewLens itself reads no environment variables and needs no credentials, API
+keys, or `.env` file. All configuration is explicit: CLI flags (see
+`reviewlens analyze --help`) or an `AnalysisConfig` passed to the Python API,
+as described in the [API reference](docs/api.md). Charts are rendered with
+matplotlib's non-interactive `Agg` backend, so no display server is required.
+
 ## Architecture
 
 The CLI and Python API share one typed pipeline:
@@ -184,6 +205,37 @@ ReviewLens is designed for in-memory analysis of up to 50,000 reviews on a
 typical developer laptop; this is a design target, not a timing guarantee. For
 constrained machines, lower `max_features`, choose `k` manually, or avoid the
 manual evaluation range.
+
+## Development
+
+Development uses uv 0.11 (the `required-version` in `pyproject.toml`) and the
+committed lockfile. To set up a checkout and run the CLI from source:
+
+```bash
+git clone https://github.com/al-dioooo/review-lens.git
+cd review-lens
+uv sync --all-groups --locked
+uv run reviewlens analyze examples/sample_reviews.csv
+```
+
+`uv run` executes commands inside the locked project environment. Before
+opening a pull request, run the
+[quality checks](CONTRIBUTING.md#tests-and-quality-checks) that CI enforces.
+
+## Releases
+
+ReviewLens follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
+and notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+Development happens on `main`, the trunk and default branch. `production` holds
+the most recently released version. To release, a maintainer merges `main` into
+`production` through a release pull request, then publishes a GitHub release
+with a `vX.Y.Z` tag. Publishing the release runs the
+[publish workflow](.github/workflows/publish.yml). It verifies that the tag
+matches the package version, builds the wheel and source distribution, and
+uploads them to PyPI through trusted publishing, so no API token is stored in
+the repository. The step-by-step release checklist is in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
 

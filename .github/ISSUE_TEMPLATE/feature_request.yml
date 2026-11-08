@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a new capability or a change to existing behavior.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ReviewLens works issue-first: describe the problem and the approach you have in mind so it can be discussed and agreed before anyone writes code. Please search the existing issues first.
+
+        Current scope: deterministic, local analysis of user-provided CSV or JSON files. Scrapers, hosted services, external or local generative AI, runtime downloads, dashboards, plugin systems, and MCP behavior are outside v0.1.x; see the Roadmap in the README.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What are you trying to do, and what limitation stops you today?
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach
+      description: How should ReviewLens solve it? Include the CLI flags, Python API, configuration, or output changes you expect.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other solutions or workarounds you have considered, and why they fall short.
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Scope and compatibility
+      description: Does this fit the current scope? Would it change existing results, outputs, or public APIs, or add dependencies?
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: Any data in this request is synthetic or anonymized and contains no credentials.
+          required: true
+        - label: I am willing to open a pull request for this once the approach is agreed.
