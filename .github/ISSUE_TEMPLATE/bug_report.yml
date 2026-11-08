@@ -1,0 +1,93 @@
+name: Bug report
+description: Report incorrect behavior, a crash, or a wrong result in ReviewLens.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please search the existing issues first.
+
+        **Security vulnerabilities must not be reported here.** Follow [SECURITY.md](https://github.com/al-dioooo/review-lens/blob/main/SECURITY.md) instead.
+
+        Only include synthetic or anonymized data. Never paste real reviews, personal data, credentials, or private datasets.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and how it affects you.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: The command or Python code you ran, plus a minimal synthetic input file or a few rows that trigger the problem.
+      placeholder: |
+        1. Save these rows as reviews.csv: ...
+        2. Run `reviewlens analyze reviews.csv --clusters 3`
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen instead.
+    validations:
+      required: true
+  - type: input
+    id: reviewlens-version
+    attributes:
+      label: ReviewLens version
+      description: Output of `python -c "import reviewlens; print(reviewlens.__version__)"`, or the commit if you run from source.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.12.7"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      options:
+        - CLI (reviewlens analyze)
+        - Python API (analyze_reviews / export_excel)
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output or traceback
+      description: Paste the relevant output after removing any personal or private data. It is formatted as code automatically.
+      render: shell
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed fix approach
+      description: Optional. If you know the cause or plan to fix it yourself, describe the approach so it can be agreed before you open a pull request.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: Any data in this report is synthetic or anonymized and contains no credentials.
+          required: true
