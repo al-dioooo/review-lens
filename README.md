@@ -177,6 +177,14 @@ store and share them according to the source dataset's privacy requirements.
 Formula-like text is neutralized for Excel safety, but that does not anonymize
 the content.
 
+## Configuration and environment variables
+
+ReviewLens itself reads no environment variables and needs no credentials, API
+keys, or `.env` file. All configuration is explicit: CLI flags (see
+`reviewlens analyze --help`) or an `AnalysisConfig` passed to the Python API,
+as described in the [API reference](docs/api.md). Charts are rendered with
+matplotlib's non-interactive `Agg` backend, so no display server is required.
+
 ## Architecture
 
 The CLI and Python API share one typed pipeline:
