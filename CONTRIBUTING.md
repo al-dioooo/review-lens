@@ -95,6 +95,35 @@ git switch -c feature/short-description upstream/main
 - Update documentation and tests with every behavior change, and add a
   `CHANGELOG.md` entry under `[Unreleased]` for user-visible changes.
 
+### 5. Review
+
+- Reviewers check correctness (including edge cases), readability, fit with
+  the architecture, meaningful tests, and updated documentation.
+- Reviewers start each comment with `required:` for changes that must be
+  addressed before merge, or `nit:` for optional suggestions. They explain the
+  reasoning behind each comment and ask a question rather than guess when
+  something is unclear. Trivial issues do not block a merge.
+- Authors respond to every comment: fix it, ask for clarification, or explain
+  why they disagree. Do not apply a fix you do not understand. Push follow-ups
+  as new commits, then re-request review and point out what changed.
+
+### 6. Merge
+
+A maintainer merges a pull request only when:
+
+- all CI checks pass (a red pull request is never merged);
+- every review conversation is resolved;
+- the review is done and recorded on the pull request; and
+- the title follows the format above.
+
+Pull requests are squash-merged into `main` with the pull request title as the
+commit subject, so `main` reads as one Conventional Commit with its issue
+number per change:
+
+```bash
+gh pr merge <number> --squash --delete-branch --subject "<pull request title>"
+```
+
 ## Tests and quality checks
 
 Run the smallest relevant test while developing. For example:
