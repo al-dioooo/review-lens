@@ -31,4 +31,6 @@ Small, easily reversed choices belong in the pull request description instead.
 
 ## Index
 
-No decisions have been recorded yet.
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0001](0001-main-trunk-and-production-release-branch.md) | Use `main` as the trunk and `production` as the release branch | Accepted |
