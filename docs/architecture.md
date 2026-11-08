@@ -171,3 +171,5 @@ callers remain responsible for access control and appropriate handling.
 
 See the [API reference](api.md), [data-format guide](data-format.md), and
 [project README](../README.md).
+Significant project decisions and their reasoning are recorded in the
+[architecture decision records](adr/README.md).
